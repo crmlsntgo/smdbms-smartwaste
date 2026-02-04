@@ -265,6 +265,52 @@ export default function Archive() {
         setShowDeleteModal(true)
     }
 
+    const handleDeleteSelected = async () => {
+        if (selectedBins.size === 0) return
+        if (!confirm(`Permanently delete ${selectedBins.size} selected bins?`)) return
+
+        try {
+            const app = initFirebase()
+            const db = getFirestore(app)
+            const auth = getAuth(app)
+            const userName = await getUserName(auth, db)
+            
+            // Process deletions
+            const promises = Array.from(selectedBins).map(async (id) => {
+                const bin = allBins.find(b => b.id === id)
+                if (!bin) return
+                if (bin.status === 'Deleted') return
+
+                const safeData = JSON.parse(JSON.stringify(bin))
+                if (safeData.id) delete safeData.id
+                
+                // Add to Deleted collection
+                await addDoc(collection(db, 'deleted'), {
+                    ...safeData,
+                    deletedAt: serverTimestamp(),
+                    deletedBy: auth.currentUser?.email || 'Admin',
+                    modifiedBy: userName,
+                    originalId: id,
+                    autoDeleteAfter: new Date(Date.now() + 60 * 1000)
+                })
+
+                // Remove from Archive collection
+                await deleteDoc(doc(db, 'archive', id))
+            })
+
+            await Promise.all(promises)
+            
+            // Remove from local state
+            setAllBins(prev => prev.filter(b => !selectedBins.has(b.id)))
+            setSelectedBins(new Set())
+            alert(`${selectedBins.size} bins deleted.`)
+            
+        } catch (error) {
+             console.error("Batch delete failed", error)
+             alert('Batch delete failed.')
+        }
+    }
+
     const confirmDelete = async () => {
         if (!binToDelete) return
         
@@ -354,6 +400,16 @@ export default function Archive() {
                                 <button className="archive-restore-btn" onClick={handleRestoreSelected} disabled={selectedBins.size === 0}>
                                     <i className="fas fa-undo"></i> Restore Selected
                                 </button>
+                                {userRole === 'admin' && (
+                                <button 
+                                    className="archive-restore-btn" 
+                                    onClick={handleDeleteSelected} 
+                                    disabled={selectedBins.size === 0} 
+                                    style={{marginLeft:'10px', background:'#ef4444'}}
+                                >
+                                    <i className="fas fa-trash"></i> Delete Selected
+                                </button>
+                                )}
                             </div>
                         </div>
 
@@ -468,7 +524,7 @@ export default function Archive() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {!isDeleted && !isRestored && (
+                                                    {!isDeleted && !isRestored && userRole === 'admin' && (
                                                         <button className="action-icon action-icon--restore" onClick={() => handleRestore(bin.id)} title="Restore">
                                                             <i className="fas fa-redo"></i>
                                                         </button>

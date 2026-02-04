@@ -20,9 +20,11 @@ import {
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
-
-// Load customize CSS only when this page mounts so it takes precedence
-// over unrelated page CSS that may be present in the DOM.
+import '../styles/vendor/dashboard-style.css'
+import '../styles/vendor/header.css'
+import '../styles/vendor/settings.css'
+import '../styles/vendor/customize.css'
+import '../styles/vendor/modal.css' // Reusing modal css for consistency
 
 export default function AdminCustomize() {
   const [bins, setBins] = useState([])
@@ -33,6 +35,7 @@ export default function AdminCustomize() {
   const [showInfo, setShowInfo] = useState(false)
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [removeReason, setRemoveReason] = useState('')
+  const [otherReason, setOtherReason] = useState('')
   const [permissionError, setPermissionError] = useState(null)
   const [successModal, setSuccessModal] = useState({ show: false, message: '' })
 
@@ -148,7 +151,8 @@ export default function AdminCustomize() {
           sensorStatus: bin.sensorStatus || 'disconnected',
           lastConfigured: bin.lastConfigured,
           status: bin.status,
-          createdAt: bin.createdAt
+          createdAt: bin.createdAt,
+          createdBy: bin.createdBy || 'System'
       })
       setShowInfo(false)
   }
@@ -173,8 +177,26 @@ export default function AdminCustomize() {
     // Matching `customize.js` logic for `generateNextSerial`
     const app = initFirebase()
     const db = getFirestore(app)
+    const auth = getAuth(app)
 
     try {
+        // Fetch Creator Name
+        let creatorName = 'System';
+        if (auth.currentUser) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+                if (userDoc.exists()) {
+                    const uData = userDoc.data()
+                    creatorName = `${uData.firstName || ''} ${uData.lastName || ''}`.trim() || uData.email || auth.currentUser.email
+                } else {
+                    creatorName = auth.currentUser.email || 'System'
+                }
+            } catch (e) {
+                console.warn("Error fetching creator name:", e)
+                creatorName = auth.currentUser.email || 'System'
+            }
+        }
+
         const nextSerial = await runTransaction(db, async (transaction) => {
              const serialRef = doc(db, 'settings', 'serials')
              const serialDoc = await transaction.get(serialRef)
@@ -189,9 +211,18 @@ export default function AdminCustomize() {
              return `SDB-${currentSeq}`
         })
         
+        // Calculate auto-increment name
+        const existingNames = bins.map(b => b.binName || b.name);
+        let potentialName = 'New Bin';
+        let counter = 2;
+        while (existingNames.includes(potentialName)) {
+            potentialName = `New Bin ${counter}`;
+            counter++;
+        }
+
         // Create new bin
         const newBinData = {
-            binName: 'New Bin',
+            binName: potentialName,
             capacity: 100,
             serial: nextSerial,
             threshold: 80,
@@ -200,7 +231,8 @@ export default function AdminCustomize() {
             sensorStatus: 'disconnected',
             createdAt: serverTimestamp(),
             lastConfigured: serverTimestamp(),
-            status: 'Active'
+            status: 'Active',
+            createdBy: creatorName
         }
 
         const docRef = await addDoc(collection(db, 'bins'), newBinData)
@@ -248,7 +280,9 @@ export default function AdminCustomize() {
   }
 
   const handleRemove = async () => {
-      const reason = removeReason;
+      let reason = removeReason;
+      if (reason === 'Other') reason = otherReason;
+      
       if (!reason) return;
       if (bins.length <= 1) {
           alert('Cannot remove the last bin');
@@ -490,6 +524,10 @@ export default function AdminCustomize() {
                                     <span className="info-label">Date Created</span>
                                     <span className="info-value">{formatDate(formData.createdAt)}</span>
                                 </div>
+                                <div className="info-row">
+                                    <span className="info-label">Created By</span>
+                                    <span className="info-value">{formData.createdBy}</span>
+                                </div>
                             </div>
                         </div>
                     </form>
@@ -534,7 +572,12 @@ export default function AdminCustomize() {
             </div>
             
             {/* Remove Confirmation Modal */}
-            <div className={`modal-overlay ${showRemoveModal ? 'active' : ''}`}>
+            <div 
+                className={`modal-overlay ${showRemoveModal ? 'active' : ''}`}
+                onClick={(e) => {
+                    if (e.target === e.currentTarget) setShowRemoveModal(false);
+                }}
+            >
                 <div className="modal-dialog">
                     <div className="modal-icon">
                         <i className="fas fa-trash"></i>
@@ -554,9 +597,22 @@ export default function AdminCustomize() {
                                 <option value="Repair">Repair</option>
                                 <option value="Damaged">Damaged</option>
                                 <option value="Maintenance">Maintenance</option>
+                                <option value="Other">Other</option>
                             </select>
                             <i className="fas fa-chevron-down"></i>
                         </div>
+                        {removeReason === 'Other' && (
+                            <div style={{marginTop: '10px'}}>
+                                <input 
+                                    type="text" 
+                                    className="modal-input" 
+                                    placeholder="Please specify reason"
+                                    value={otherReason}
+                                    onChange={(e) => setOtherReason(e.target.value)}
+                                    style={{width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px'}}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="modal-actions">
@@ -564,7 +620,7 @@ export default function AdminCustomize() {
                             className="modal-btn modal-btn--confirm" 
                             id="modal-confirm-btn" 
                             onClick={handleRemove}
-                            disabled={!removeReason}
+                            disabled={!removeReason || (removeReason === 'Other' && !otherReason)}
                         >
                             Confirm
                         </button>
@@ -580,7 +636,13 @@ export default function AdminCustomize() {
             </div>
 
             {/* Success Modal */}
-            <div className={`modal-overlay ${successModal.show ? 'active' : ''}`} style={{display: successModal.show ? 'flex' : 'none', zIndex: 2100}}>
+            <div 
+                className={`modal-overlay ${successModal.show ? 'active' : ''}`} 
+                style={{display: successModal.show ? 'flex' : 'none', zIndex: 2100}}
+                onClick={(e) => {
+                    if (e.target === e.currentTarget) setSuccessModal({ show: false, message: '' });
+                }}
+            >
                 <div className="modal-dialog">
                     <div className="modal-icon" style={{background: '#d1fae5', color: '#059669', display:'flex', alignItems:'center', justifyContent:'center', width:'48px', height:'48px', borderRadius:'50%', margin:'0 auto 16px auto'}}>
                         <i className="fas fa-check" style={{fontSize: '24px'}}></i>

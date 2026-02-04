@@ -264,6 +264,73 @@ export default function AdminArchive() {
          }
     }
 
+    const handleDeleteSelected = async () => {
+        if (selectedBins.size === 0) return
+        if (!confirm(`Permanently delete ${selectedBins.size} selected bins?`)) return
+
+        try {
+            const app = initFirebase()
+            const db = getFirestore(app)
+            const auth = getAuth(app)
+            const userName = await getUserName(auth, db)
+            
+            // Process deletions in parallel as we need to add to 'deleted' collection (new docs)
+            const promises = Array.from(selectedBins).map(async (id) => {
+                const bin = allBins.find(b => b.id === id)
+                if (!bin) return
+                
+                // Skip if already deleted (though UI filters might handle this, safer to check)
+                if (bin.status === 'Deleted') return
+
+                const safeData = JSON.parse(JSON.stringify(bin))
+                if (safeData.id) delete safeData.id
+                
+                // Add to Deleted collection
+                await addDoc(collection(db, 'deleted'), {
+                    ...safeData,
+                    deletedAt: serverTimestamp(),
+                    deletedBy: auth.currentUser?.email || 'Admin',
+                    modifiedBy: userName,
+                    originalId: id,
+                    autoDeleteAfter: new Date(Date.now() + 60 * 1000)
+                })
+
+                // Remove from Archive collection
+                await deleteDoc(doc(db, 'archive', id))
+            })
+
+            await Promise.all(promises)
+            
+            // Add manually to local state as 'Deleted' 
+            // We reload data effectively involves complex merging, simpler to just mark as deleted or remove
+            // Since `confirmDelete` moves it to 'Deleted' tab logic, we should mirror that.
+            
+            setAllBins(prev => {
+                const newlyDeleted = []
+                const remaining = prev.filter(b => {
+                    if (selectedBins.has(b.id)) {
+                        newlyDeleted.push({
+                            ...b,
+                            status: 'Deleted',
+                            archivedAt: new Date(),
+                            modifiedBy: userName
+                        })
+                        return false 
+                    }
+                    return true
+                })
+                return [...remaining, ...newlyDeleted].sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0))
+            })
+
+            setSelectedBins(new Set())
+            alert(`${selectedBins.size} bins deleted.`)
+            
+        } catch (error) {
+             console.error("Batch delete failed", error)
+             alert('Batch delete failed.')
+        }
+    }
+
     const handleDeleteClick = (id) => {
         setBinToDelete(id)
         setShowDeleteModal(true)
@@ -371,6 +438,14 @@ export default function AdminArchive() {
                             <div className="archive-header__right">
                                 <button className="archive-restore-btn" onClick={handleRestoreSelected} disabled={selectedBins.size === 0}>
                                     <i className="fas fa-undo"></i> Restore Selected
+                                </button>
+                                <button 
+                                    className="archive-restore-btn" 
+                                    onClick={handleDeleteSelected} 
+                                    disabled={selectedBins.size === 0} 
+                                    style={{marginLeft:'10px', background:'#ef4444'}}
+                                >
+                                    <i className="fas fa-trash"></i> Delete Selected
                                 </button>
                             </div>
                         </div>
@@ -501,7 +576,7 @@ export default function AdminArchive() {
                                                             <i className="fas fa-redo"></i>
                                                         </button>
                                                     )}
-                                                    {!isDeleted && (
+                                                    {!isDeleted && !isRestored && (
                                                         <button className="action-icon action-icon--delete" onClick={() => handleDeleteClick(bin.id)} title="Delete">
                                                             <i className="fas fa-trash"></i>
                                                         </button>
