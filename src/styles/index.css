@@ -1,0 +1,6 @@
+/* Vendor CSS copied from the legacy project for migration */
+@import "./vendor/dashboard-style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

@@ -1,0 +1,253 @@
+/* Shared modal styles (based on Customize page) */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.active {
+  display: flex;
+  animation: modal-fade-in 180ms ease;
+}
+
+/* Toast notification variant (positioned top-right, no backdrop) */
+.modal-overlay--toast {
+  background: transparent;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 20px;
+  pointer-events: none;
+}
+
+.modal-overlay--toast.active {
+  display: flex;
+  animation: toast-slide-in 300ms ease;
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: 12px;
+  padding: 32px 28px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transform: translateY(-8px);
+  opacity: 0;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.modal-overlay.active .modal-dialog {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Toast dialog variant (compact, horizontal layout) */
+.modal-dialog--toast {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 16px 20px;
+  max-width: 420px;
+  width: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  text-align: left;
+  transform: translateX(450px);
+  opacity: 1;
+  transition: transform 300ms ease, opacity 300ms ease;
+  pointer-events: auto;
+}
+
+.modal-overlay--toast.active .modal-dialog--toast {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.modal-icon {
+  width: 72px;
+  height: 72px;
+  background: #fecaca;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 32px;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+/* Toast icon variant (smaller, inline) */
+.modal-dialog--toast .modal-icon {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  font-size: 16px;
+  border-radius: 50%;
+}
+
+/* Variants */
+.modal-icon--success {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.modal-icon--logout,
+.modal-icon--delete {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #101828;
+  margin: 0 0 8px 0;
+}
+
+.modal-subtitle {
+  font-size: 14px;
+  color: #667085;
+  margin: 0 0 24px 0;
+}
+
+.modal-subtitle--small {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: -16px;
+}
+
+/* Toast text variant (compact) */
+.modal-dialog--toast .modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: #101828;
+}
+
+.modal-dialog--toast .modal-subtitle {
+  font-size: 13px;
+  margin: 2px 0 0 0;
+  color: #6b7280;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn--confirm {
+  background: #ff0000;
+  color: red;
+}
+
+.modal-btn--confirm:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.modal-btn--confirm:disabled {
+  background: #fecaca;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.modal-btn--cancel {
+  background: #f3f4f6;
+  color: #344054;
+}
+
+.modal-btn--cancel:hover {
+  background: #e5e7eb;
+}
+
+.modal-btn--danger {
+  background: #dc2626;
+  color: white;
+}
+
+.modal-btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(450px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(450px);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-dialog {
+    padding: 24px 20px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-btn {
+    width: 100%;
+  }
+
+  .modal-dialog--toast {
+    max-width: calc(100vw - 40px);
+  }
+}
+
+/* Toast close button */
+.toast-close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.toast-close-btn:hover {
+  color: #6b7280;
+}
