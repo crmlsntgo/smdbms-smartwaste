@@ -13,6 +13,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState(false)
+  const [emailError, setEmailError] = useState(false)
 
   // Helper to generate unique identifier (matching legacy 8-digit format)
   const generateUniqueIdentifier = async (db) => {
@@ -90,20 +91,27 @@ export default function Register() {
 
     } catch (error) {
       console.error('Registration error:', error)
-      setPasswordError(true)
       let errorMessage = 'Registration failed: '
       switch (error.code) {
         case 'auth/email-already-in-use':
           errorMessage = 'This email is already registered. Please use a different email or login.'
+          setEmailError(true)
+          setPasswordError(false)
           break
         case 'auth/invalid-email':
           errorMessage = 'Please enter a valid email address.'
+          setEmailError(true)
+          setPasswordError(false)
           break
         case 'auth/weak-password':
           errorMessage = 'Password should be at least 6 characters.'
+          setPasswordError(true)
+          setEmailError(false)
           break
         default:
           errorMessage += error.message
+          setPasswordError(false)
+          setEmailError(false)
       }
       alert(errorMessage)
     }
@@ -187,11 +195,14 @@ export default function Register() {
           </div>
           <input
             type="email"
-            className="input-field"
+            className={`input-field ${emailError ? 'error' : ''}`}
             placeholder="EMAIL"
             required
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={e => {
+              setEmail(e.target.value)
+              setEmailError(false)
+            }}
           />
 
           <div className="password-container" style={{ position: 'relative' }}>
