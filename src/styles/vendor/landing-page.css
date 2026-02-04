@@ -644,7 +644,7 @@ body.landing-page {
   text-align: center;
 }
 
-.section-title {
+.landing-page .section-title {
   font-size: clamp(32px, 5vw, 48px);
   font-weight: 700;
   color: var(--sb-text-main);
@@ -653,7 +653,7 @@ body.landing-page {
   text-align: center;
 }
 
-.section-title::after {
+.landing-page .section-title::after {
   content: '';
   position: absolute;
   bottom: -8px;
@@ -665,7 +665,7 @@ body.landing-page {
   border-radius: 2px;
 }
 
-.section-subtitle {
+.landing-page .section-subtitle {
   font-size: clamp(14px, 2vw, 16px);
   color: var(--sb-text-muted);
   max-width: 700px;

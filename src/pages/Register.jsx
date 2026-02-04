@@ -36,17 +36,43 @@ export default function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault()
+    
+    let hasError = false
+    let newEmailError = false
+    let newPasswordError = false
+    let alertMsg = ""
 
-    if (password.length < 8) {
-      alert("Password must be at least 8 characters.")
-      setPasswordError(true)
-      return
+    // Email validation (simple regex)
+    // Checks for characters@characters.characters (at least one dot after @)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+        newEmailError = true
+        hasError = true
+        alertMsg += "Please enter a valid email address.\n"
     }
 
+    // Password length validation
+    if (password.length < 8) {
+      newPasswordError = true
+      hasError = true
+      alertMsg += "Password must be at least 8 characters.\n"
+    }
+
+    // Password match validation
     if (password !== confirmPassword) {
-      alert("Passwords don't match!")
-      setPasswordError(true)
-      return
+      newPasswordError = true
+      hasError = true
+      alertMsg += "Passwords don't match!\n"
+    }
+
+    // Update state to show red borders
+    setEmailError(newEmailError)
+    setPasswordError(newPasswordError)
+
+    // Check if any error occurred
+    if (hasError) {
+        alert(alertMsg.trim())
+        return
     }
 
     try {
