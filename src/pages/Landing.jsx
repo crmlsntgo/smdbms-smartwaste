@@ -1,24 +1,11 @@
-import React, { useEffect } from 'react'
-
-// Load landing CSS via a dedicated <link> so we can remove it on unmount
-// to avoid style leakage into other pages.
+import React, { useLayoutEffect } from 'react'
+import '../styles/vendor/landing-page.css'
 
 export default function Landing() {
-  useEffect(() => {
-    const id = 'landing-page-css'
-    // If already present, don't add again
-    if (!document.getElementById(id)) {
-      const link = document.createElement('link')
-      link.id = id
-      link.rel = 'stylesheet'
-      // Vite serves source files under /src during dev; this path works in both dev and build outputs
-      link.href = '/src/styles/vendor/landing-page.css'
-      document.head.appendChild(link)
-    }
-
+  useLayoutEffect(() => {
+    document.body.classList.add('landing-page')
     return () => {
-      const existing = document.getElementById(id)
-      if (existing) existing.remove()
+      document.body.classList.remove('landing-page')
     }
   }, [])
 
@@ -44,9 +31,9 @@ export default function Landing() {
                 </div>
             </a>
             <nav className="landing-nav__menu">
-                <a href="#features" className="landing-nav__link">Product</a>
-                <a href="#contact" className="landing-nav__link">Support</a>
-                <a href="#pricing" className="landing-nav__link">Pricing</a>
+                <a href="#" className="landing-nav__link">Product</a>
+                <a href="#" className="landing-nav__link">Support</a>
+                <a href="#" className="landing-nav__link">Pricing</a>
             </nav>
             <div className="landing-nav__actions">
                 <a href="/login" className="landing-nav__signin">Sign in</a>

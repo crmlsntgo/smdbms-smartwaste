@@ -28,7 +28,7 @@ html {
   scroll-behavior: smooth;
 }
 
-body {
+body.landing-page {
   font-family: 'Montserrat', sans-serif;
   
   background: #ffffff;

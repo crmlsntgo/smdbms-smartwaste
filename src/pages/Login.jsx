@@ -171,7 +171,7 @@ export default function Login() {
             </div>
 
             {passwordError ? (
-                <div style={{color: '#ff4d4d', fontSize: '0.85rem', marginTop: '10px', marginBottom: '20px', textAlign: 'right', fontWeight: 500, fontFamily: '"Montserrat", sans-serif'}}>
+                <div style={{color: '#ff4d4d', fontSize: '0.70rem', marginTop: '10px', marginBottom: '20px', textAlign: 'center', fontWeight: 500, fontFamily: '"Montserrat", sans-serif'}}>
                     The password you’ve entered is incorrect. <span onClick={() => setShowResetModal(true)} style={{textDecoration: 'underline', cursor: 'pointer', fontWeight: 600}}>Forgot Password?</span>
                 </div>
             ) : (
