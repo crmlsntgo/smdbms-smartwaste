@@ -124,7 +124,7 @@ export default function Profile() {
 
                     {/* Personal Information Section */}
                     <div className="profile-section">
-                        <div className="section-header">
+                        <div className="profile-section-header">
                             <h3 className="section-title">Personal Information</h3>
                         </div>
 

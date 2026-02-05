@@ -30,6 +30,7 @@ export default function Users() {
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [sortConfig, setSortConfig] = useState({ key: 'firstName', direction: 'asc' })
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [loadMoreLoading, setLoadMoreLoading] = useState(false)
@@ -170,7 +171,9 @@ export default function Users() {
 
   const handleDeleteUser = async () => {
     if(!selectedUser) return
-    if(!confirm(`Are you sure you want to delete ${selectedUser.firstName}? This action cannot be undone.`)) return
+    
+    // Close modal first
+    setShowDeleteConfirm(false)
 
     try {
         const app = initFirebase()
@@ -179,10 +182,6 @@ export default function Users() {
         // Delete from 'users' collection
         await deleteDoc(doc(db, 'users', selectedUser.uid))
         
-        // Note: For 'usernames' collection update, we'd need the username.
-        // Assuming we have username in user object or fetch it.
-        // Legacy code implies standard Firebase Auth deletion handles auth, 
-        // but Firestore data needs manual cleanup.
         if (selectedUser.username) {
              await deleteDoc(doc(db, 'usernames', selectedUser.username))
         }
@@ -196,6 +195,23 @@ export default function Users() {
         console.error("Delete failed", e)
         alert('Failed to delete user.')
     }
+  }
+
+  const handleOpenDeleteConfirm = () => {
+      setShowDeleteConfirm(true)
+  }
+
+  const handleCloseDeleteConfirm = () => {
+        setShowDeleteConfirm(false)
+  }
+  
+  const formatDate = (date) => {
+      if (!date) return 'N/A'
+      // Handle firestore timestamp
+      if (typeof date.toDate === 'function') {
+          return date.toDate().toLocaleString()
+      }
+      return new Date(date).toLocaleString()
   }
 
   return (
@@ -334,61 +350,154 @@ export default function Users() {
 
        {/* User Details Modal */}
        {selectedUser && (
-           <div className="modal" style={{display: 'flex'}}>
-               <div className="modal-content user-modal-content" style={{maxWidth:'500px'}}>
-                   <div className="modal-header">
-                       <h3>User Details</h3>
-                       <button className="modal-close" onClick={() => setSelectedUser(null)}>
-                           <i className="fas fa-times"></i>
-                       </button>
+           <div className={`modal ${selectedUser ? 'active' : ''}`} style={{display: 'flex', zIndex: 1000}}>
+               <div className="modal-content user-modal-content" style={{
+                   maxWidth:'550px', 
+                   padding:'24px', 
+                   borderRadius:'8px',
+                   fontFamily: "'Inter', sans-serif",
+                   overflow: 'hidden'
+               }}>
+                   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px'}}>
+                       <h3 style={{fontSize:'20px', fontWeight:'700', margin:'0'}}>User Details</h3>
+                       <button className="modal-close" onClick={() => setSelectedUser(null)} style={{background:'none', border:'none', fontSize:'24px', color:'#9ca3af', cursor:'pointer'}}>×</button>
                    </div>
-                   <div className="modal-body">
-                       <div style={{textAlign:'center', marginBottom:'20px'}}>
-                            <div className="avatar-circle" style={{
-                                width:'80px', height:'80px', fontSize:'28px', margin:'0 auto',
-                                backgroundColor: getAvatarColor(selectedUser.uid)
-                            }}>
-                                {getInitials(selectedUser.firstName, selectedUser.lastName)}
-                            </div>
-                            <h2 style={{marginTop:'10px', fontSize:'20px'}}>{selectedUser.firstName} {selectedUser.lastName}</h2>
-                            <p style={{color:'#666'}}>{selectedUser.email}</p>
+                   
+                   <div className="modal-body" style={{borderTop:'1px solid #f3f4f6'}}>
+                       
+                       <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid #f3f4f6'}}>
+                           <span style={{color:'#6b7280', fontSize:'14px', fontWeight:'600'}}>Full Name:</span>
+                           <span style={{color:'#111827', fontSize:'14px'}}>{selectedUser.firstName} {selectedUser.lastName}</span>
+                       </div>
+
+                       <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid #f3f4f6'}}>
+                           <span style={{color:'#6b7280', fontSize:'14px', fontWeight:'600'}}>Email:</span>
+                           <span style={{color:'#111827', fontSize:'14px'}}>{selectedUser.email}</span>
+                       </div>
+
+                       <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid #f3f4f6'}}>
+                           <span style={{color:'#6b7280', fontSize:'14px', fontWeight:'600'}}>Identifier:</span>
+                           <span style={{color:'#111827', fontSize:'14px'}}>{selectedUser.username || 'N/A'}</span>
+                       </div>
+
+                       <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid #f3f4f6'}}>
+                           <span style={{color:'#6b7280', fontSize:'14px', fontWeight:'600'}}>Role:</span>
+                           <span style={{color:'#111827', fontSize:'14px'}}>{selectedUser.role || 'utility staff'}</span>
+                       </div>
+
+                       <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid #f3f4f6'}}>
+                           <span style={{color:'#6b7280', fontSize:'14px', fontWeight:'600'}}>Created:</span>
+                           <span style={{color:'#111827', fontSize:'14px'}}>{formatDate(selectedUser.createdAt)}</span>
+                       </div>
+
+                       <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid #f3f4f6'}}>
+                           <span style={{color:'#6b7280', fontSize:'14px', fontWeight:'600'}}>Address:</span>
+                           <span style={{color:'#111827', fontSize:'14px', textAlign: 'right', maxWidth: '60%'}}>{selectedUser.address || 'N/A'}</span>
                        </div>
                        
-                       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'15px', marginBottom:'20px'}}>
-                           <div>
-                               <label style={{fontSize:'12px', color:'#888'}}>Role</label>
-                               <div style={{fontWeight:'500'}}>{selectedUser.role || 'Utility Staff'}</div>
-                           </div>
-                           <div>
-                               <label style={{fontSize:'12px', color:'#888'}}>Username</label>
-                               <div style={{fontWeight:'500'}}>{selectedUser.username || 'N/A'}</div>
-                           </div>
-                           <div>
-                               <label style={{fontSize:'12px', color:'#888'}}>Phone</label>
-                               <div style={{fontWeight:'500'}}>{selectedUser.phone || 'N/A'}</div>
-                           </div>
-                            <div>
-                               <label style={{fontSize:'12px', color:'#888'}}>Address</label>
-                               <div style={{fontWeight:'500'}}>{selectedUser.address || 'N/A'}</div>
-                           </div>
-                       </div>
-                       
-                       <div style={{borderTop:'1px solid #eee', paddingTop:'15px', display:'flex', justifyContent:'flex-end', gap:'10px'}}>
+                       <div style={{marginTop:'32px'}}>
                            <button 
-                                className="config-btn config-btn--danger" 
-                                onClick={handleDeleteUser}
-                                style={{background:'#ef4444', color:'white', border:'none', padding:'8px 16px', borderRadius:'4px'}}
+                                onClick={handleOpenDeleteConfirm}
+                                style={{
+                                    width: '100%',
+                                    background:'#dc2626', 
+                                    color:'white', 
+                                    border:'none', 
+                                    padding:'12px', 
+                                    borderRadius:'6px',
+                                    fontSize:'16px',
+                                    fontWeight:'600',
+                                    cursor:'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px'
+                                }}
                             >
-                               <i className="fas fa-trash"></i> Remove User
-                           </button>
-                           <button 
-                                className="config-btn" 
-                                onClick={() => setSelectedUser(null)}
-                                style={{background:'#f3f4f6', border:'none', padding:'8px 16px', borderRadius:'4px'}}
-                            >
-                               Close
+                               <i className="fas fa-trash-alt"></i> Remove User
                            </button>
                        </div>
+                   </div>
+               </div>
+           </div>
+       )}
+
+       {/* Delete Confirmation Modal */}
+       {showDeleteConfirm && selectedUser && (
+           <div className="modal active" style={{display: 'flex', zIndex: 1100, alignItems:'center', justifyContent:'center'}}>
+               <div className="modal-content" style={{
+                   maxWidth:'400px', 
+                   padding:'32px', 
+                   borderRadius:'16px', 
+                   textAlign:'center',
+                   fontFamily: "'Inter', sans-serif"
+               }}>
+                   <div style={{
+                       width: '64px',
+                       height: '64px',
+                       borderRadius: '50%',
+                       background: '#fee2e2',
+                       color: '#dc2626',
+                       fontSize: '24px',
+                       display: 'flex',
+                       alignItems: 'center',
+                       justifyContent: 'center',
+                       margin: '0 auto 24px auto'
+                   }}>
+                       <i className="fas fa-times"></i>
+                   </div>
+                   
+                   <h3 style={{fontSize:'24px', fontWeight:'700', color:'#111827', margin:'0 0 12px 0'}}>Delete member</h3>
+                   
+                   <p style={{color:'#6b7280', fontSize:'16px', margin:'0 0 24px 0', lineHeight:'1.5'}}>
+                       Are you sure you want to permanently remove <br/>
+                       <strong>'{selectedUser.firstName} {selectedUser.lastName}'</strong>?
+                   </p>
+                   
+                   <div style={{background:'#f9fafb', padding:'16px', borderRadius:'8px', margin:'0 0 24px 0', textAlign:'left'}}>
+                       <p style={{color:'#374151', fontSize:'14px', fontWeight:'500', margin:'0 0 8px 0', textAlign:'center'}}>This will delete</p>
+                       <ul style={{margin:0, padding:'0 0 0 20px', color:'#6b7280', fontSize:'14px', listStyleType:'none', textAlign:'center'}}>
+                           <li>- User account</li>
+                           <li>- User data from database</li>
+                           <li>- Username mapping</li>
+                       </ul>
+                   </div>
+                   
+                   <p style={{color:'#6b7280', fontSize:'14px', margin:'0 0 24px 0'}}>This action cannot be undone.</p>
+                   
+                   <div style={{display:'flex', gap:'12px'}}>
+                       <button 
+                           onClick={handleDeleteUser}
+                           style={{
+                               flex: 1,
+                               background:'#ef4444', 
+                               color:'white', 
+                               border:'none', 
+                               padding:'12px', 
+                               borderRadius:'8px',
+                               fontSize:'16px',
+                               fontWeight:'600',
+                               cursor:'pointer'
+                           }}
+                       >
+                           Confirm
+                       </button>
+                       <button 
+                           onClick={handleCloseDeleteConfirm}
+                           style={{
+                               flex: 1,
+                               background:'#f3f4f6', 
+                               color:'#374151', 
+                               border:'1px solid #e5e7eb',
+                               padding:'12px', 
+                               borderRadius:'8px',
+                               fontSize:'16px',
+                               fontWeight:'600',
+                               cursor:'pointer'
+                           }}
+                       >
+                           Cancel
+                       </button>
                    </div>
                </div>
            </div>

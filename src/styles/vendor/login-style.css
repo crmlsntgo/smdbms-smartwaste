@@ -208,9 +208,10 @@
       background: rgb(255, 255, 255);
       backdrop-filter: blur(10px);
       border-radius: 25px;
-      padding: 5px 35px;
+      
       width: 423px;
       max-width: 90%;
+      padding: 0px 35px 2px 35px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15), 0 4px 15px rgba(0, 0, 0, 0.1);
       text-align: center;
       color: #027a64;

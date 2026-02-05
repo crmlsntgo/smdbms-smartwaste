@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import '../styles/vendor/login-style.css'
 
@@ -65,6 +65,52 @@ export default function Login() {
     } catch (err) {
       console.error(err)
       setPasswordError(true)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      const app = initFirebase()
+      const auth = getAuth(app)
+      const db = getFirestore(app)
+      const provider = new GoogleAuthProvider()
+      
+      const result = await signInWithPopup(auth, provider)
+      const user = result.user
+      
+      // Check if user exists
+      const userRef = doc(db, 'users', user.uid)
+      const userDoc = await getDoc(userRef)
+      
+      if (userDoc.exists()) {
+          const data = userDoc.data()
+          // Check if profile is complete (has firstName/lastName)
+          if (!data.firstName || !data.lastName) {
+              window.location.href = '/setup'
+          } else {
+              // Login success, redirect based on role
+              const role = (data.role || 'utility staff').toLowerCase()
+              try { localStorage.setItem('sb_role', role) } catch (e) {}
+              
+              if (role === 'admin') window.location.href = '/admin/dashboard'
+              else window.location.href = '/dashboard'
+          }
+      } else {
+          // New user - create initial doc and redirect to setup
+          await setDoc(userRef, {
+              email: user.email,
+              role: 'utility staff',
+              createdAt: new Date().toISOString(),
+              photoURL: user.photoURL || ''
+          })
+          window.location.href = '/setup'
+      }
+
+    } catch (err) {
+      console.error("Google Sign In Error:", err)
+      // Specific error handling if needed, or just alert
+      if (err.code === 'auth/popup-closed-by-user') return
+      alert("Google Sign In Failed. Please try again.")
     }
   }
 
@@ -183,8 +229,7 @@ export default function Login() {
 
         <div className="separator">OR</div>
 
-        {/* Google Sign In logic can be added later if needed, currently just UI */}
-        <button id="google-signin" className="google-btn" onClick={() => window.location.href='/google-setup'}>
+        <button id="google-signin" className="google-btn" type="button" onClick={handleGoogleLogin}>
             <img
             src="https://www.google.com/favicon.ico"
             alt="Google"
