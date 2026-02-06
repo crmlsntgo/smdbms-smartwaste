@@ -21,6 +21,7 @@ import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import Toast from '../components/Toast'
+import { notifyBinChange } from '../utils/syncManager'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/archive.css'
@@ -270,8 +271,30 @@ export default function Archive() {
              selectedBins.forEach(id => {
                 const bin = allBins.find(b => b.id === id)
                 if (bin && bin.status !== 'Restored' && bin.status !== 'Deleted') { // Can only restore archived
-                    const ref = doc(db, 'archive', id)
-                    batch.update(ref, { status: 'Restored', restoredAt: serverTimestamp() })
+                    const archiveRef = doc(db, 'archive', id)
+                    const binRef = doc(db, 'bins', id)
+                    
+                    // Helper to remove UI-specific derived fields and potentially invalid dates
+                    const { 
+                        lastActive, 
+                        archivedAt, 
+                        id: _id, // Remove id
+                        binId,   // Remove derived binId
+                        ...rest 
+                    } = bin
+
+                    // Restore to bins (active)
+                    const restoreData = {
+                        ...rest,
+                        status: 'active',
+                        restoredAt: serverTimestamp(),
+                        lastConfigured: serverTimestamp()
+                    }
+
+                    batch.set(binRef, restoreData)
+
+                    // Update archive status
+                    batch.update(archiveRef, { status: 'Restored', restoredAt: serverTimestamp() })
                 }
              })
 
@@ -282,6 +305,7 @@ export default function Archive() {
              setSelectedBins(new Set())
              setToast({ show: true, message: 'Selected bins restored.', type: 'success' })
              
+             notifyBinChange(db, 'restore', Array.from(selectedBins))
              setShowBatchRestoreModal(false)
 
          } catch (error) {

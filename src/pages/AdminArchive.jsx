@@ -288,8 +288,28 @@ export default function AdminArchive() {
              selectedBins.forEach(id => {
                 const bin = allBins.find(b => b.id === id)
                 if (bin && bin.status !== 'Restored' && bin.status !== 'Deleted') {
-                    const ref = doc(db, 'archive', id)
-                    batch.update(ref, { status: 'Restored', restoredAt: serverTimestamp() })
+                    const archiveRef = doc(db, 'archive', id)
+                    const binRef = doc(db, 'bins', id)
+
+                    // Helper to remove UI-specific derived fields and potentially invalid dates
+                    const { 
+                        lastActive, 
+                        archivedAt, 
+                        id: _id, // Remove id
+                        binId,   // Remove derived binId (original fields like serial usually exist)
+                        ...rest 
+                    } = bin
+
+                    // Restore to bins (active)
+                    const restoreData = {
+                        ...rest,
+                        status: 'active',
+                        restoredAt: serverTimestamp(),
+                        lastConfigured: serverTimestamp()
+                    }
+                    
+                    batch.set(binRef, restoreData)
+                    batch.update(archiveRef, { status: 'Restored', restoredAt: serverTimestamp() })
                     count++
                 }
              })

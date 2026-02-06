@@ -15,7 +15,8 @@ import {
     deleteDoc, 
     addDoc, 
     serverTimestamp,
-    runTransaction 
+    runTransaction,
+    onSnapshot
 } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
@@ -58,10 +59,35 @@ export default function AdminCustomize() {
   const [hasMore, setHasMore] = useState(true)
   const PAGE_SIZE = 200
 
+  // Maintain ref for event listener access to current state
+  const selectedBinIdRef = useRef(selectedBinId)
+  useEffect(() => {
+      selectedBinIdRef.current = selectedBinId
+  }, [selectedBinId])
+
   useEffect(() => {
     const app = initFirebase()
     const auth = getAuth(app)
     const db = getFirestore(app)
+    
+    // Sync Listener for Real-time Updates (Quota Efficient)
+    const unsubMeta = onSnapshot(doc(db, 'settings', 'binMetadata'), (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            if (data.targetIds && (data.lastAction === 'delete' || data.lastAction === 'archive')) {
+                setBins(prev => prev.filter(b => !data.targetIds.includes(String(b.id))));
+                
+                // If the currently selected bin was removed externally
+                if (data.targetIds.includes(String(selectedBinIdRef.current))) {
+                    setSelectedBinId(null);
+                    setFormData({ binName:'', capacity:'', serial:'', threshold:'', location:'', imageUrl:'', sensorStatus:'' });
+                }
+            } else if (data.lastAction === 'restore' || data.lastAction === 'create') {
+                 // Refresh list to show restored or new bins
+                 loadBins(db, true);
+            }
+        }
+    });
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -95,6 +121,7 @@ export default function AdminCustomize() {
     })
 
     return () => {
+      unsubMeta()
       unsubscribe()
       const link = document.getElementById('customize-page-css')
       if (link) link.remove()
@@ -244,6 +271,8 @@ export default function AdminCustomize() {
         setBins([newBin, ...bins])
         selectBin(newBin)
         setSuccessModal({ show: true, message: `New bin created with Serial: ${nextSerial}` })
+        
+        notifyBinChange(db, 'create', docRef.id)
 
     } catch (error) {
         console.error("Error creating bin:", error)
