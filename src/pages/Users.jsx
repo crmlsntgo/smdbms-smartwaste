@@ -349,8 +349,8 @@ export default function Users() {
       </div>
 
        {/* User Details Modal */}
-       {selectedUser && (
-           <div className={`modal ${selectedUser ? 'active' : ''}`} style={{display: 'flex', zIndex: 1000}}>
+       {selectedUser && !showDeleteConfirm && (
+           <div className={`modal ${selectedUser ? 'active' : ''}`} style={{display: 'flex', zIndex: 1000}} onClick={(e) => { if(e.target === e.currentTarget) setSelectedUser(null) }}>
                <div className="modal-content user-modal-content" style={{
                    maxWidth:'550px', 
                    padding:'24px', 
@@ -424,13 +424,15 @@ export default function Users() {
 
        {/* Delete Confirmation Modal */}
        {showDeleteConfirm && selectedUser && (
-           <div className="modal active" style={{display: 'flex', zIndex: 1100, alignItems:'center', justifyContent:'center'}}>
+           <div className="modal active" style={{display: 'flex', zIndex: 1100, alignItems:'center', justifyContent:'center'}} onClick={(e) => { if(e.target === e.currentTarget) setShowDeleteConfirm(false) }}>
                <div className="modal-content" style={{
                    maxWidth:'400px', 
                    padding:'32px', 
                    borderRadius:'16px', 
                    textAlign:'center',
-                   fontFamily: "'Inter', sans-serif"
+                   fontFamily: "'Inter', sans-serif",
+                   background: 'white',
+                   boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                }}>
                    <div style={{
                        width: '64px',

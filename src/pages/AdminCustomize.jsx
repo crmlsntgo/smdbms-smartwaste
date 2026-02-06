@@ -20,6 +20,8 @@ import {
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import Toast from '../components/Toast'
+import { notifyBinChange } from '../utils/syncManager'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/settings.css'
@@ -38,6 +40,7 @@ export default function AdminCustomize() {
   const [otherReason, setOtherReason] = useState('')
   const [permissionError, setPermissionError] = useState(null)
   const [successModal, setSuccessModal] = useState({ show: false, message: '' })
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
   // Form State
   const [formData, setFormData] = useState({
@@ -271,7 +274,7 @@ export default function AdminCustomize() {
           
           // Update local state
           setBins(prev => prev.map(b => b.id === selectedBinId ? { ...b, ...updateData, lastConfigured: new Date() } : b))
-          alert("Bin configuration saved.")
+          setToast({ show: true, message: "Bin configuration saved.", type: 'success' })
 
       } catch (error) {
           console.error("Save failed:", error)
@@ -355,7 +358,9 @@ export default function AdminCustomize() {
           }
           
           setShowRemoveModal(false)
-          alert(`Bin "${currentBin.binName}" moved to archive`)
+          setToast({ show: true, message: `Bin "${currentBin.binName}" moved to archive`, type: 'delete' })
+
+          notifyBinChange(db, 'archive', currentBin.id)
 
       } catch (error) {
           console.error("Remove failed:", error)
@@ -372,9 +377,9 @@ export default function AdminCustomize() {
   }
 
   const filteredBins = bins.filter(b => 
-      b.binName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      b.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.serial?.toLowerCase().includes(searchTerm.toLowerCase())
+      (b.binName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (b.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (b.serial || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -662,6 +667,12 @@ export default function AdminCustomize() {
           </div>
         </main>
       </div>
+      <Toast 
+        message={toast.message} 
+        show={toast.show} 
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })} 
+      />
     </div>
   )
 }

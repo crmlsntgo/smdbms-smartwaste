@@ -184,7 +184,7 @@ export default function Login() {
         <div className="app-name2">DUSTBIN</div>
         <p className="welcome">Welcome to SmartWaste</p>
         <p className="enter-message">
-            Enter your email and password to access your account.
+            Enter your email or identifier and password to access your account.
         </p>
 
         <form onSubmit={handleLogin}>

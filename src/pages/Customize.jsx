@@ -15,11 +15,14 @@ import {
     deleteDoc, 
     addDoc, 
     serverTimestamp,
-    runTransaction 
+    runTransaction,
+    onSnapshot 
 } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import Toast from '../components/Toast'
+import { notifyBinChange } from '../utils/syncManager'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/settings.css'
@@ -38,7 +41,8 @@ export default function Customize() {
   const [otherReason, setOtherReason] = useState('')
   const [permissionError, setPermissionError] = useState(null)
   const [successModal, setSuccessModal] = useState({ show: false, message: '' })
-  
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+
   // Form State
   const [formData, setFormData] = useState({
       binName: '',
@@ -55,10 +59,40 @@ export default function Customize() {
   const [hasMore, setHasMore] = useState(true)
   const PAGE_SIZE = 200
 
+  // Maintain ref for event listener access to current state
+  const selectedBinIdRef = useRef(selectedBinId)
+  useEffect(() => {
+      selectedBinIdRef.current = selectedBinId
+  }, [selectedBinId])
+
   useEffect(() => {
     const app = initFirebase()
     const auth = getAuth(app)
     const db = getFirestore(app)
+
+    // Sync Listener using Metadata (Quota Efficient)
+    const unsubMeta = onSnapshot(doc(db, 'settings', 'binMetadata'), (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            if (data.targetIds && (data.lastAction === 'delete' || data.lastAction === 'archive')) {
+                setBins(prev => prev.filter(b => !data.targetIds.includes(String(b.id))));
+                
+                // If the currently selected bin was removed externally
+                if (data.targetIds.includes(String(selectedBinIdRef.current))) {
+                    setSelectedBinId(null);
+                    setFormData({ binName:'', capacity:'', serial:'', threshold:'', location:'', imageUrl:'', sensorStatus:'' });
+                    // No alert needed, just clear it. Or show small toast.
+                }
+            } else if (data.lastAction === 'restore' || data.lastAction === 'create') {
+                // Determine if we should reload. 
+                // For simplicity and consistency, let's reload the list if an update happens.
+                // But to be quota efficient, maybe we only want to fetch if we are utility staff?
+                // The requirements emphasize correctness.
+                // A lightweight reload logic:
+                 loadBins(db, true); // Refresh list
+            }
+        }
+    });
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -92,6 +126,7 @@ export default function Customize() {
     })
 
     return () => {
+      unsubMeta()
       unsubscribe()
       const link = document.getElementById('customize-page-css')
       if (link) link.remove()
@@ -197,6 +232,12 @@ export default function Customize() {
             }
         }
 
+        if (userRole !== 'admin' && userRole !== 'utility staff') {
+             // Basic permission check
+             alert("You don't have permission to modify bins."); // Should be handled by rules but valid check
+             return;
+        }
+
         const nextSerial = await runTransaction(db, async (transaction) => {
              const serialRef = doc(db, 'settings', 'serials')
              const serialDoc = await transaction.get(serialRef)
@@ -241,6 +282,8 @@ export default function Customize() {
         setBins([newBin, ...bins])
         selectBin(newBin)
         setSuccessModal({ show: true, message: `New bin created with Serial: ${nextSerial}` })
+        
+        notifyBinChange(db, 'create', docRef.id)
 
     } catch (error) {
         console.error("Error creating bin:", error)
@@ -255,6 +298,16 @@ export default function Customize() {
       try {
           const app = initFirebase()
           const db = getFirestore(app)
+          
+          // Pre-check for validity (Requirement 4)
+          const checkSnap = await getDoc(doc(db, 'bins', selectedBinId))
+          if (!checkSnap.exists()) {
+               setToast({ show: true, message: "This bin has been deleted or archived by another user.", type: 'error' })
+               setBins(prev => prev.filter(b => b.id !== selectedBinId))
+               setSelectedBinId(null)
+               return
+          }
+
           const binRef = doc(db, 'bins', selectedBinId)
 
           const updateData = {
@@ -270,7 +323,7 @@ export default function Customize() {
           
           // Update local state
           setBins(prev => prev.map(b => b.id === selectedBinId ? { ...b, ...updateData } : b))
-          alert("Bin configuration saved.")
+          setToast({ show: true, message: "Bin configuration saved.", type: 'success' })
 
       } catch (error) {
           console.error("Save failed:", error)
@@ -354,7 +407,10 @@ export default function Customize() {
           }
           
           setShowRemoveModal(false)
-          alert(`Bin "${currentBin.binName}" moved to archive`)
+          setToast({ show: true, message: `Bin "${currentBin.binName}" moved to archive`, type: 'delete' })
+          
+          // Notify other clients
+          notifyBinChange(db, 'archive', currentBin.id)
 
       } catch (error) {
           console.error("Remove failed:", error)
@@ -371,9 +427,9 @@ export default function Customize() {
   }
 
   const filteredBins = bins.filter(b => 
-      b.binName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      b.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.serial?.toLowerCase().includes(searchTerm.toLowerCase())
+      (b.binName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (b.location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (b.serial || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -661,6 +717,13 @@ export default function Customize() {
           </div>
         </main>
       </div>
+
+      <Toast 
+        message={toast.message} 
+        show={toast.show} 
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })} 
+      />
     </div>
   )
 }

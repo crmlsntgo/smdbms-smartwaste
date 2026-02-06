@@ -20,6 +20,7 @@ import {
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import Toast from '../components/Toast'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/archive.css'
@@ -39,6 +40,10 @@ export default function Archive() {
     // Deletion Modal State
     const [binToDelete, setBinToDelete] = useState(null)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [binToRestore, setBinToRestore] = useState(null)
+    const [showRestoreModal, setShowRestoreModal] = useState(false)
+    const [showBatchRestoreModal, setShowBatchRestoreModal] = useState(false)
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
     // --- Stats ---
     const stats = useMemo(() => {
@@ -188,8 +193,14 @@ export default function Archive() {
         }
     }
 
-    const handleRestore = async (id) => {
-        if (!confirm('Are you sure you want to restore this bin?')) return
+    const handleRestoreClick = (id) => {
+        setBinToRestore(id)
+        setShowRestoreModal(true)
+    }
+
+    const confirmRestore = async () => {
+        if (!binToRestore) return
+        const id = binToRestore
 
         try {
             const app = initFirebase()
@@ -224,7 +235,8 @@ export default function Archive() {
 
             // Optimistic update
             setAllBins(prev => prev.map(b => b.id === id ? { ...b, status: 'Restored' } : b))
-            alert('Bin restored successfully.')
+            setToast({ show: true, message: "Bin restored successfully.", type: 'success' })
+            setShowRestoreModal(false)
         } catch (error) {
             console.error("Restore failed", error)
             alert('Failed to restore bin.')
@@ -233,8 +245,23 @@ export default function Archive() {
 
     const handleRestoreSelected = async () => {
          if (selectedBins.size === 0) return
-         if (!confirm(`Restore ${selectedBins.size} selected bins?`)) return
 
+         // Check if any restored bin is selected
+         let hasRestored = false
+         selectedBins.forEach(id => {
+             const bin = allBins.find(b => b.id === id)
+             if (bin && bin.status === 'Restored') hasRestored = true
+         })
+
+         if (hasRestored) {
+             setToast({ show: true, message: "The bin's already restored", type: 'error' })
+             return
+         }
+
+         setShowBatchRestoreModal(true)
+    }
+
+    const confirmBatchRestore = async () => {
          try {
              const app = initFirebase()
              const db = getFirestore(app)
@@ -253,9 +280,13 @@ export default function Archive() {
              // Optimistic update
              setAllBins(prev => prev.map(b => selectedBins.has(b.id) ? { ...b, status: 'Restored' } : b))
              setSelectedBins(new Set())
-             alert('Selected bins restored.')
+             setToast({ show: true, message: 'Selected bins restored.', type: 'success' })
+             
+             setShowBatchRestoreModal(false)
+
          } catch (error) {
              console.error("Batch restore failed", error)
+             setShowBatchRestoreModal(false)
              alert('Batch restore failed.')
          }
     }
@@ -524,8 +555,8 @@ export default function Archive() {
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    {!isDeleted && !isRestored && userRole === 'admin' && (
-                                                        <button className="action-icon action-icon--restore" onClick={() => handleRestore(bin.id)} title="Restore">
+                                                    {!isDeleted && !isRestored && (
+                                                        <button className="action-icon action-icon--restore" onClick={() => handleRestoreClick(bin.id)} title="Restore">
                                                             <i className="fas fa-redo"></i>
                                                         </button>
                                                     )}
@@ -575,9 +606,19 @@ export default function Archive() {
                 </main>
             </div>
 
-            {/* Delete Modal */}
-            <div className={`modal-overlay ${showDeleteModal ? 'active' : ''}`} style={{display: showDeleteModal ? 'flex' : 'none'}}>
-                <div className="modal-dialog">
+            {/* Delete Modal - Kept minimal for this file as requested, but adding blur and outside click */}
+            <div 
+                className={`modal-overlay ${showDeleteModal ? 'active' : ''}`} 
+                style={{
+                    display: showDeleteModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)'
+                }}
+                onClick={() => setShowDeleteModal(false)}
+            >
+                <div 
+                    className="modal-dialog"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <div className="modal-icon modal-icon--delete" style={{color: '#ef4444', background: '#fee2e2'}}>
                         <i className="fas fa-trash-alt"></i>
                     </div>
@@ -589,6 +630,73 @@ export default function Archive() {
                     </div>
                 </div>
             </div>
+
+            {/* Restore Modal */}
+            <div 
+                className={`modal-overlay ${showRestoreModal ? 'active' : ''}`}
+                 style={{
+                    display: showRestoreModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)'
+                }}
+                onClick={() => setShowRestoreModal(false)}
+            >
+                <div 
+                    className="modal-dialog"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                     <div className="modal-icon modal-icon--restore" style={{color: '#047857', background: '#d1fae5'}}>
+                        <i className="fas fa-undo"></i>
+                     </div>
+                     <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Restore</h2>
+                     <p className="modal-subtitle">
+                         Are you sure you want to restore <strong>{allBins.find(b => b.id === binToRestore)?.binName || 'this bin'}</strong>?<br/>
+                         This bin will be moved back to the active dashboard.
+                     </p>
+                     <div className="modal-actions">
+                        <button className="modal-btn modal-btn--cancel" onClick={() => setShowRestoreModal(false)}>Cancel</button>
+                        <button className="modal-btn" style={{background:'#10b981', color:'white', display:'flex', alignItems:'center', gap:'8px'}} onClick={confirmRestore}>
+                            <i className="fas fa-undo"></i> Restore
+                        </button>
+                     </div>
+                </div>
+            </div>
+
+            {/* Batch Restore Modal */}
+            <div 
+                className={`modal-overlay ${showBatchRestoreModal ? 'active' : ''}`}
+                 style={{
+                    display: showBatchRestoreModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)'
+                }}
+                onClick={() => setShowBatchRestoreModal(false)}
+            >
+                <div 
+                    className="modal-dialog"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                     <div className="modal-icon modal-icon--restore" style={{color: '#047857', background: '#d1fae5'}}>
+                        <i className="fas fa-undo"></i>
+                     </div>
+                     <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Restore</h2>
+                     <p className="modal-subtitle">
+                         Are you sure you want to restore <strong>{selectedBins.size} bin(s)</strong>?<br/>
+                         These bins will be moved back to the active dashboard.
+                     </p>
+                     <div className="modal-actions">
+                        <button className="modal-btn modal-btn--cancel" onClick={() => setShowBatchRestoreModal(false)}>Cancel</button>
+                        <button className="modal-btn" style={{background:'#10b981', color:'white', display:'flex', alignItems:'center', gap:'8px'}} onClick={confirmBatchRestore}>
+                            <i className="fas fa-undo"></i> Restore
+                        </button>
+                     </div>
+                </div>
+            </div>
+
+            <Toast 
+                message={toast.message} 
+                show={toast.show} 
+                type={toast.type}
+                onClose={() => setToast({ ...toast, show: false })} 
+            />
         </div>
     )
 }

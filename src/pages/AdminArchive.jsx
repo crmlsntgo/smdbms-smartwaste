@@ -12,7 +12,7 @@ import {
     updateDoc, 
     deleteDoc, 
     addDoc, 
-    serverTimestamp, 
+    serverTimestamp,
     writeBatch,
     runTransaction,
     setDoc
@@ -20,6 +20,8 @@ import {
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import Toast from '../components/Toast'
+import { notifyBinChange } from '../utils/syncManager'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/archive.css'
@@ -40,6 +42,11 @@ export default function AdminArchive() {
     // Deletion Modal State
     const [binToDelete, setBinToDelete] = useState(null)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [binToRestore, setBinToRestore] = useState(null)
+    const [showRestoreModal, setShowRestoreModal] = useState(false)
+    const [showBatchRestoreModal, setShowBatchRestoreModal] = useState(false)
+    const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
     // --- Stats ---
     const stats = useMemo(() => {
@@ -191,8 +198,14 @@ export default function AdminArchive() {
         }
     }
 
-    const handleRestore = async (id) => {
-        if (!confirm('Are you sure you want to restore this bin?')) return
+    const handleRestoreClick = (id) => {
+        setBinToRestore(id)
+        setShowRestoreModal(true)
+    }
+
+    const confirmRestore = async () => {
+        if (!binToRestore) return
+        const id = binToRestore
 
         try {
             const app = initFirebase()
@@ -227,7 +240,8 @@ export default function AdminArchive() {
 
             // Update local state
             setAllBins(prev => prev.map(b => b.id === id ? { ...b, status: 'Restored', modifiedBy: userName } : b))
-            alert('Bin restored successfully and returned to Customize page.')
+            setToast({ show: true, message: "Bin restored successfully.", type: 'success' })
+            setShowRestoreModal(false)
         } catch (error) {
             console.error("Restore failed", error)
             alert('Failed to restore bin.')
@@ -236,8 +250,35 @@ export default function AdminArchive() {
 
     const handleRestoreSelected = async () => {
          if (selectedBins.size === 0) return
-         if (!confirm(`Restore ${selectedBins.size} selected bins?`)) return
 
+         // Check if any restored bin is selected
+         let hasRestored = false
+         selectedBins.forEach(id => {
+             const bin = allBins.find(b => b.id === id)
+             if (bin && bin.status === 'Restored') hasRestored = true
+         })
+
+         if (hasRestored) {
+             setToast({ show: true, message: "The bin's already restored", type: 'error' })
+             return
+         }
+
+         // Check if any deleted bin is selected
+         let hasDeleted = false
+         selectedBins.forEach(id => {
+             const bin = allBins.find(b => b.id === id)
+             if (bin && bin.status === 'Deleted') hasDeleted = true
+         })
+
+         if (hasDeleted) {
+             setToast({ show: true, message: "Can't be restored, the bin is deleted", type: 'error' })
+             return
+         }
+
+         setShowBatchRestoreModal(true)
+    }
+
+    const confirmBatchRestore = async () => {
          try {
              const app = initFirebase()
              const db = getFirestore(app)
@@ -257,77 +298,121 @@ export default function AdminArchive() {
              
              setAllBins(prev => prev.map(b => selectedBins.has(b.id) && b.status !== 'Deleted' ? { ...b, status: 'Restored' } : b))
              setSelectedBins(new Set())
-             alert(`${count} bins restored.`)
+             setToast({ show: true, message: `${count} bins restored.`, type: 'success' })
+             
+             notifyBinChange(db, 'restore', Array.from(selectedBins))
+             setShowBatchRestoreModal(false)
+
          } catch (error) {
              console.error("Batch restore failed", error)
+             setShowBatchRestoreModal(false)
              alert('Batch restore failed.')
          }
     }
 
     const handleDeleteSelected = async () => {
         if (selectedBins.size === 0) return
-        if (!confirm(`Permanently delete ${selectedBins.size} selected bins?`)) return
 
+        // 1. Validation: Prevent deleting 'Restored' bins
+        let hasRestored = false
+        selectedBins.forEach(id => {
+            const bin = allBins.find(b => b.id === id)
+            if (bin && bin.status === 'Restored') hasRestored = true
+        })
+
+        if (hasRestored) {
+            setToast({ show: true, message: "Can't be deleted the bins is restored. Go to customize page to customize the bin.", type: 'error' })
+            return
+        }
+
+        setShowBatchDeleteModal(true)
+    }
+
+    const confirmBatchDelete = async () => {
         try {
             const app = initFirebase()
             const db = getFirestore(app)
             const auth = getAuth(app)
             const userName = await getUserName(auth, db)
             
-            // Process deletions in parallel as we need to add to 'deleted' collection (new docs)
-            const promises = Array.from(selectedBins).map(async (id) => {
+            const promises = []
+
+            for (const id of selectedBins) {
                 const bin = allBins.find(b => b.id === id)
-                if (!bin) return
-                
-                // Skip if already deleted (though UI filters might handle this, safer to check)
-                if (bin.status === 'Deleted') return
+                if (!bin) continue
 
-                const safeData = JSON.parse(JSON.stringify(bin))
-                if (safeData.id) delete safeData.id
-                
-                // Add to Deleted collection
-                await addDoc(collection(db, 'deleted'), {
-                    ...safeData,
-                    deletedAt: serverTimestamp(),
-                    deletedBy: auth.currentUser?.email || 'Admin',
-                    modifiedBy: userName,
-                    originalId: id,
-                    autoDeleteAfter: new Date(Date.now() + 60 * 1000)
-                })
+                if (bin.status === 'Deleted') {
+                    // Logic 2: "Permanent Delete" for already deleted bins
+                    const deletedRef = doc(db, 'deleted', id)
+                    promises.push(deleteDoc(deletedRef))
+                    
+                    // Logic 3: Delete Serial Number
+                    if (bin.serial) {
+                        const serialRef = doc(db, 'serials', bin.serial)
+                        // Using separate transactions inside loop is inefficient but serials are likely one-off docs?
+                        // Or just fire-and-forget delete
+                        promises.push(deleteDoc(serialRef))
+                        // Also check 'settings/serials' or wherever it was? 
+                        // The codebase previously used `doc(db, 'serials', serial)` for archiving.
+                    }
+                } else {
+                    // Logic 4: Archive -> Deleted (Soft Delete)
+                    const safeData = JSON.parse(JSON.stringify(bin))
+                    if (safeData.id) delete safeData.id
 
-                // Remove from Archive collection
-                await deleteDoc(doc(db, 'archive', id))
-            })
+                    promises.push(
+                        addDoc(collection(db, 'deleted'), {
+                            ...safeData,
+                            deletedAt: serverTimestamp(),
+                            deletedBy: auth.currentUser?.email || 'Admin',
+                            modifiedBy: userName,
+                            originalId: id,
+                            autoDeleteAfter: new Date(Date.now() + 60 * 1000)
+                        }),
+                        deleteDoc(doc(db, 'archive', id))
+                    )
+                }
+            }
 
             await Promise.all(promises)
             
-            // Add manually to local state as 'Deleted' 
-            // We reload data effectively involves complex merging, simpler to just mark as deleted or remove
-            // Since `confirmDelete` moves it to 'Deleted' tab logic, we should mirror that.
-            
+            // Local State Update
             setAllBins(prev => {
-                const newlyDeleted = []
-                const remaining = prev.filter(b => {
+                // If soft deleted -> move to deleted tab (status update)
+                // If permanent deleted -> remove from list
+                const nextState = []
+                prev.forEach(b => {
                     if (selectedBins.has(b.id)) {
-                        newlyDeleted.push({
-                            ...b,
-                            status: 'Deleted',
-                            archivedAt: new Date(),
-                            modifiedBy: userName
-                        })
-                        return false 
+                        if (b.status === 'Deleted') {
+                           // Permanent delete: Exclude from state
+                           return
+                        } else {
+                           // Soft delete: Update Status
+                           nextState.push({
+                               ...b,
+                               status: 'Deleted',
+                               archivedAt: new Date(),
+                               modifiedBy: userName
+                           })
+                        }
+                    } else {
+                        nextState.push(b)
                     }
-                    return true
                 })
-                return [...remaining, ...newlyDeleted].sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0))
+                return nextState.sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0))
             })
 
+            const deletedCount = selectedBins.size
             setSelectedBins(new Set())
-            alert(`${selectedBins.size} bins deleted.`)
+            setToast({ show: true, message: `${deletedCount} bins deleted.`, type: 'delete' })
+
+            notifyBinChange(db, 'delete', Array.from(selectedBins))
+            setShowBatchDeleteModal(false)
             
         } catch (error) {
              console.error("Batch delete failed", error)
-             alert('Batch delete failed.')
+             setShowBatchDeleteModal(false)
+             setToast({ show: true, message: 'Batch delete failed.', type: 'error' })
         }
     }
 
@@ -346,6 +431,24 @@ export default function AdminArchive() {
             const userName = await getUserName(auth, db)
             
             const binData = allBins.find(b => b.id === binToDelete) || {}
+
+            if (binData.status === 'Deleted') {
+                 // Hard Delete Logic
+                 await deleteDoc(doc(db, 'deleted', binToDelete))
+                 if (binData.serial) {
+                     await deleteDoc(doc(db, 'serials', binData.serial))
+                 }
+                 
+                 setAllBins(prev => prev.filter(b => b.id !== binToDelete))
+                 setShowDeleteModal(false)
+                 setBinToDelete(null)
+                 setToast({ show: true, message: `The ${binData.binName || 'bin'} is permanently deleted.`, type: 'delete' })
+                 
+                 notifyBinChange(db, 'delete', binToDelete)
+
+                 return
+            }
+            
             const safeData = JSON.parse(JSON.stringify(binData)) 
             if (safeData.id) delete safeData.id 
 
@@ -362,9 +465,7 @@ export default function AdminArchive() {
             // Delete from Archive
             await deleteDoc(doc(db, 'archive', binToDelete))
             
-            // Delete from All Bins (locally move to Deleted status if we want to show it in Deleted tab, but typically 'delete from archive' implies move)
-            // Since we re-fetch 'deleted' only on load, let's manually add it to 'deleted' status in state
-            // Re-construct the 'deleted' item to match local state shape
+            // Update local state to Deleted
             const deletedItem = {
                 ...binData,
                 status: 'Deleted',
@@ -372,7 +473,6 @@ export default function AdminArchive() {
                 modifiedBy: userName
             }
             
-            // Remove old, add new
             setAllBins(prev => {
                 const filtered = prev.filter(b => b.id !== binToDelete)
                 return [...filtered, deletedItem].sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0))
@@ -380,10 +480,13 @@ export default function AdminArchive() {
 
             setShowDeleteModal(false)
             setBinToDelete(null)
+            setToast({ show: true, message: `The ${binData.binName} is deleted. Expired after 1 minute`, type: 'delete' })
             
+            notifyBinChange(db, 'delete', binToDelete)
+
         } catch (error) {
             console.error("Delete failed", error)
-            alert("Delete failed.")
+            setToast({ show: true, message: "Delete failed.", type: 'error' })
         }
     }
 
@@ -572,7 +675,7 @@ export default function AdminArchive() {
                                                 <td>{bin.modifiedBy || 'N/A'}</td>
                                                 <td>
                                                     {!isDeleted && !isRestored && (
-                                                        <button className="action-icon action-icon--restore" onClick={() => handleRestore(bin.id)} title="Restore">
+                                                        <button className="action-icon action-icon--restore" onClick={() => handleRestoreClick(bin.id)} title="Restore">
                                                             <i className="fas fa-redo"></i>
                                                         </button>
                                                     )}
@@ -623,19 +726,151 @@ export default function AdminArchive() {
             </div>
 
             {/* Delete Modal */}
-            <div className={`modal-overlay ${showDeleteModal ? 'active' : ''}`} style={{display: showDeleteModal ? 'flex' : 'none'}}>
-                <div className="modal-dialog">
-                    <div className="modal-icon modal-icon--delete" style={{color: '#ef4444', background: '#fee2e2'}}>
-                        <i className="fas fa-trash-alt"></i>
+            <div 
+                className={`modal-overlay ${showDeleteModal ? 'active' : ''}`} 
+                style={{
+                    display: showDeleteModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)' // Background blur
+                }}
+                onClick={() => setShowDeleteModal(false)} // Close on click outside
+            >
+                <div 
+                    className="modal-dialog" 
+                    onClick={(e) => e.stopPropagation()} // Prevent close when clicking inside
+                >
+                    <div className="modal-icon modal-icon--delete" style={{color: '#d32f2f', background: '#ffebee'}}>
+                         <i className="fas fa-exclamation-triangle"></i>
                     </div>
-                    <h2 className="modal-title">Delete this bin permanently?</h2>
-                    <p className="modal-subtitle">This action will move the bin to the deleted items folder. Only admins can view deleted items.</p>
+                    <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Deletion</h2>
+                    <p className="modal-subtitle">
+                        Are you sure you want to permanently delete <strong>{allBins.find(b => b.id === binToDelete)?.binName || 'this bin'}</strong>?<br/>
+                        This action cannot be undone.
+                    </p>
                     <div className="modal-actions">
-                        <button className="modal-btn modal-btn--confirm" style={{background:'#ef4444'}} onClick={confirmDelete}>Delete</button>
                         <button className="modal-btn modal-btn--cancel" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+                        <button className="modal-btn" style={{background:'#d32f2f', color:'white', display:'flex', alignItems:'center', gap:'8px'}} onClick={confirmDelete}>
+                            <i className="fas fa-trash-alt"></i> Delete Permanently
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Restore Modal */}
+            <div 
+                className={`modal-overlay ${showRestoreModal ? 'active' : ''}`}
+                 style={{
+                    display: showRestoreModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)'
+                }}
+                onClick={() => setShowRestoreModal(false)}
+            >
+                <div 
+                    className="modal-dialog"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                     <div className="modal-icon modal-icon--restore" style={{color: '#047857', background: '#d1fae5'}}>
+                        <i className="fas fa-undo"></i>
+                     </div>
+                     <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Restore</h2>
+                     <p className="modal-subtitle">
+                         Are you sure you want to restore <strong>{allBins.find(b => b.id === binToRestore)?.binName || 'this bin'}</strong>?<br/>
+                         This bin will be moved back to the active dashboard.
+                     </p>
+                     <div className="modal-actions">
+                        <button className="modal-btn modal-btn--cancel" onClick={() => setShowRestoreModal(false)}>Cancel</button>
+                        <button className="modal-btn" style={{background:'#10b981', color:'white', display:'flex', alignItems:'center', gap:'8px'}} onClick={confirmRestore}>
+                            <i className="fas fa-undo"></i> Restore
+                        </button>
+                     </div>
+                </div>
+            </div>
+            {/* Batch Restore Modal */}
+            <div 
+                className={`modal-overlay ${showBatchRestoreModal ? 'active' : ''}`}
+                 style={{
+                    display: showBatchRestoreModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)'
+                }}
+                onClick={() => setShowBatchRestoreModal(false)}
+            >
+                <div 
+                    className="modal-dialog"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                     <div className="modal-icon modal-icon--restore" style={{color: '#047857', background: '#d1fae5'}}>
+                        <i className="fas fa-undo"></i>
+                     </div>
+                     <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Restore</h2>
+                     <p className="modal-subtitle">
+                         Are you sure you want to restore <strong>{selectedBins.size} bin(s)</strong>?<br/>
+                         These bins will be moved back to the active dashboard.
+                     </p>
+                     <div className="modal-actions">
+                        <button className="modal-btn modal-btn--cancel" onClick={() => setShowBatchRestoreModal(false)}>Cancel</button>
+                        <button className="modal-btn" style={{background:'#10b981', color:'white', display:'flex', alignItems:'center', gap:'8px'}} onClick={confirmBatchRestore}>
+                            <i className="fas fa-undo"></i> Restore
+                        </button>
+                     </div>
+                </div>
+            </div>
+
+            {/* Batch Delete Modal */}
+            <div 
+                className={`modal-overlay ${showBatchDeleteModal ? 'active' : ''}`} 
+                style={{
+                    display: showBatchDeleteModal ? 'flex' : 'none',
+                    backdropFilter: 'blur(5px)'
+                }}
+                onClick={() => setShowBatchDeleteModal(false)}
+            >
+                <div 
+                    className="modal-dialog"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="modal-icon modal-icon--delete" style={{color: '#d32f2f', background: '#ffebee'}}>
+                         <i className="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Deletion</h2>
+                    
+                    <div className="modal-subtitle" style={{marginBottom: '20px'}}>
+                        <p>Are you sure you want to permanently delete these <strong>{selectedBins.size}</strong> bins?</p>
+                        <div style={{
+                            maxHeight: '150px', 
+                            overflowY: 'auto', 
+                            background: '#f8fafc', 
+                            padding: '10px', 
+                            borderRadius: '6px', 
+                            marginTop: '10px',
+                            textAlign: 'left',
+                            border: '1px solid #e2e8f0'
+                        }}>
+                             {Array.from(selectedBins).map(id => {
+                                 const bin = allBins.find(b => b.id === id)
+                                 return (
+                                     <div key={id} style={{fontSize: '13px', padding: '4px 0', borderBottom: '1px dashed #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                         <i className="fas fa-trash-alt" style={{color: '#ef4444', fontSize: '12px'}}></i>
+                                         <span>{bin?.binName || 'Unknown Bin'}</span>
+                                     </div>
+                                 )
+                             })}
+                        </div>
+                        <p style={{marginTop: '10px', fontSize: '13px', color: '#64748b'}}>This action cannot be undone.</p>
+                    </div>
+
+                    <div className="modal-actions">
+                        <button className="modal-btn modal-btn--cancel" onClick={() => setShowBatchDeleteModal(false)}>Cancel</button>
+                        <button className="modal-btn" style={{background:'#d32f2f', color:'white', display:'flex', alignItems:'center', gap:'8px'}} onClick={confirmBatchDelete}>
+                            <i className="fas fa-trash-alt"></i> Delete Permanently
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <Toast 
+                message={toast.message} 
+                show={toast.show} 
+                type={toast.type}
+                onClose={() => setToast({ ...toast, show: false })} 
+            />
         </div>
     )
 }
