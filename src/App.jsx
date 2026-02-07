@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import Profile from './pages/Profile'
@@ -14,6 +15,26 @@ import Landing from './pages/Landing'
 import Users from './pages/Users'
 
 export default function App(){
+  const location = useLocation();
+
+  useEffect(() => {
+    // Exclude dark mode on Landing, Login, Register
+    const excludedRoutes = ['/', '/landing', '/login', '/register', '/setup'];
+    const isExcluded = excludedRoutes.includes(location.pathname);
+
+    if (isExcluded) {
+       document.documentElement.classList.remove('dark');
+    } else {
+       // Apply saved theme if not excluded
+       const savedTheme = localStorage.getItem('sb-theme') || 'light'
+       if (savedTheme === 'dark') {
+         document.documentElement.classList.add('dark')
+       } else {
+         document.documentElement.classList.remove('dark')
+       }
+    }
+  }, [location]) // Re-run on location change
+
   return (
     <Routes>
       <Route path="/" element={<Landing/>} />

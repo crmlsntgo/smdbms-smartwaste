@@ -266,6 +266,8 @@ export default function Archive() {
          try {
              const app = initFirebase()
              const db = getFirestore(app)
+             const auth = getAuth(app)
+             const userName = await getUserName(auth, db)
              const batch = writeBatch(db)
 
              selectedBins.forEach(id => {
@@ -294,14 +296,14 @@ export default function Archive() {
                     batch.set(binRef, restoreData)
 
                     // Update archive status
-                    batch.update(archiveRef, { status: 'Restored', restoredAt: serverTimestamp() })
+                    batch.update(archiveRef, { status: 'Restored', restoredAt: serverTimestamp(), modifiedBy: userName })
                 }
              })
 
              await batch.commit()
              
              // Optimistic update
-             setAllBins(prev => prev.map(b => selectedBins.has(b.id) ? { ...b, status: 'Restored' } : b))
+             setAllBins(prev => prev.map(b => selectedBins.has(b.id) ? { ...b, status: 'Restored', modifiedBy: userName } : b))
              setSelectedBins(new Set())
              setToast({ show: true, message: 'Selected bins restored.', type: 'success' })
              

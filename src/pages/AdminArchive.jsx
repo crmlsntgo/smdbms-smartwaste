@@ -282,6 +282,8 @@ export default function AdminArchive() {
          try {
              const app = initFirebase()
              const db = getFirestore(app)
+             const auth = getAuth(app)
+             const userName = await getUserName(auth, db)
              const batch = writeBatch(db)
              let count = 0
 
@@ -309,14 +311,14 @@ export default function AdminArchive() {
                     }
                     
                     batch.set(binRef, restoreData)
-                    batch.update(archiveRef, { status: 'Restored', restoredAt: serverTimestamp() })
+                    batch.update(archiveRef, { status: 'Restored', restoredAt: serverTimestamp(), modifiedBy: userName })
                     count++
                 }
              })
 
              if (count > 0) await batch.commit()
              
-             setAllBins(prev => prev.map(b => selectedBins.has(b.id) && b.status !== 'Deleted' ? { ...b, status: 'Restored' } : b))
+             setAllBins(prev => prev.map(b => selectedBins.has(b.id) && b.status !== 'Deleted' ? { ...b, status: 'Restored', modifiedBy: userName } : b))
              setSelectedBins(new Set())
              setToast({ show: true, message: `${count} bins restored.`, type: 'success' })
              

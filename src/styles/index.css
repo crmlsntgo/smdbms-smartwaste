@@ -4,3 +4,318 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* --- Dark Mode Enhancements --- */
+
+/* Root Variables Override */
+html.dark {
+    --sb-bg: #404040;
+    --sb-border: #666666;
+    --sb-text-main: #ffffff;
+    --sb-text-muted: #d1d5db;
+    --sb-shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+/* Body & Layout */
+html.dark body {
+    background-color: #525252 !important;
+    color: #f3f4f6;
+}
+
+html.dark .dashboard-wrapper,
+html.dark .main-content {
+    background-color: #525252;
+    color: #f3f4f6;
+}
+
+/* Headings & Text */
+html.dark h4, html.dark h5, html.dark h6,
+html.dark .sb-card-title,
+html.dark .system-title,
+html.dark .waste-header h3,
+html.dark .maint-title,
+html.dark .chart-title {
+    color: #ffffff !important;
+}
+
+html.dark h1 {
+    color: #058b6e !important;
+}
+
+html.dark h2 {
+    color: #ffffff !important;
+}
+
+html.dark .profile-card__name {
+    color: #000000 !important;
+}
+
+html.dark .config-title {
+    color: #ffffff !important;
+}
+
+html.dark .modal-title {
+    color: #000000 !important;
+}
+
+html.dark h3 {
+    color: #058b6e !important;
+}
+
+html.dark p,  html.dark label, html.dark li {
+    color: #d1d5db;
+}
+
+html.dark .stat-card__label {
+    color:#000000;
+}
+
+html.dark label,
+html.dark .start-card__label {
+    color: #000000a0;
+}
+
+html.dark .filter-tab {
+    color: rgba(255, 255, 255, 0.844)
+}
+
+html.dark .info-value {
+    color: #00000099;
+}
+
+/* Cards & Containers - Override to keep them light in dashboard */
+html.dark .card,
+html.dark .waste-card,
+html.dark .system-card {
+    background-color: white; /* Keep cards white as requested */
+    color: #101828; /* Keep text dark */
+    border-color: #e4e7ec;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Specific overrides for settings/profile/archive which seemed to be wanted dark previously, 
+   but user said "cards in the dashboard for both pages should not also be affected".
+   "Both pages" usually implies Dashboard and AdminDashboard.
+   
+   However, user said "dark mode only affects the background of the page, not what inside the page".
+   This implies a global reversion of component dark modes, except maybe Sidebar/Header?
+   
+   Let's check header requirements: "Header... Settings text black... Notification text black".
+*/
+
+html.dark .sb-card,
+html.dark .sb-settings-card,
+html.dark .sb-personal-card,
+html.dark .sb-account-settings-card,
+html.dark .sb-appearance-card,
+html.dark .legend-card {
+    background-color: white;
+    color: #101828;
+    border-color: #e4e7ec;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Headings inside white cards must be dark */
+html.dark .card h1, html.dark .card h2, html.dark .card h3, html.dark .card h4, 
+html.dark .sb-card h1, html.dark .sb-card h2, html.dark .sb-card h3, html.dark .sb-card h4,
+html.dark .maint-title,
+html.dark .chart-title {
+    color: #000000 !important; 
+}
+
+
+html.dark .waste-header h3 {
+    color: #ffffff !important; 
+}
+
+html.dark .badge-active {
+    color: #1eb763 !important; 
+}
+
+
+
+html.dark .sb-card-title,
+html.dark .system-title {
+    color: #ffffff !important;
+}
+
+html.dark .trend-axis-text {
+    fill: #667085;
+}
+
+/* Inputs should probably stay light if the cards are light */
+html.dark .sb-form-grid input,
+html.dark .sb-form-grid select,
+html.dark input[type="text"],
+html.dark input[type="email"],
+html.dark input[type="password"],
+html.dark input[type="number"],
+html.dark select,
+html.dark textarea {
+    background-color: white;
+    border: 1px solid #e4e7ec;
+    color: #101828;
+}
+
+/* Header Dropdowns */
+html.dark .sb-profile-menu, 
+html.dark .sb-notification-dropdown {
+    background-color: white;
+    border: 1px solid #e4e7ec;
+    color: #101828 !important;
+}
+
+html.dark .sb-profile-menu__item {
+    color: #101828 !important;
+}
+html.dark .sb-profile-menu__item:hover {
+    background-color: #f3f4ff;
+}
+
+html.dark .sb-notification-item__title {
+    color: #101828 !important;
+}
+
+html.dark .sb-notification-item__meta {
+    color: #667085 !important;
+}
+
+/* Settings Panels Revert */
+html.dark .sb-settings-aside {
+    background-color: white;
+    border-right: 1px solid #e4e7ec;
+}
+
+html.dark .sb-settings-nav__item {
+    color: #667085;
+}
+
+html.dark .sb-settings-nav__item:hover {
+    background-color: #f9fafb;
+    color: #101828;
+}
+
+html.dark .sb-settings-nav__item--active {
+    background-color: #027a5e; /* Original green or whatever active color was */
+    color: white;
+}
+
+/* Fix text contrast inside white cards */
+html.dark .card p, html.dark .card span, html.dark .card label, html.dark .card li,
+html.dark .sb-card p, html.dark .sb-card span, html.dark .sb-card label, html.dark .sb-card li,
+html.dark .waste-card p, html.dark .waste-card span, html.dark .waste-card label, html.dark .waste-card li,
+html.dark .system-card p, html.dark .system-card span, html.dark .system-card label, html.dark .system-card li,
+html.dark .legend-card p, html.dark .legend-card span,
+html.dark .archive-table td, html.dark .archive-table span,
+html.dark .profile-card p, html.dark .profile-card span, html.dark .profile-card div,
+html.dark .customize-bin-list span, html.dark .customize-bin-list p {
+    color: #101828;
+}
+
+/* --- Specific Text Coloring Fixes for Dark Mode --- */
+
+/* 1. Header Subtitles must be White (override the black above) */
+html.dark .waste-header p,
+html.dark .system-header .last-updated,
+html.dark .system-header span.last-updated {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 2. Donut Chart Labels must retain their colors */
+html.dark .d-label.recyclable { color: #4caf50 !important; }
+html.dark .d-label.biodegradable { color: #cddc39 !important; }
+html.dark .d-label.non-bio { color: #ff9800 !important; }
+
+/* 3. Legend Titles in Waste Overview - specific colors */
+html.dark .lc-green .lc-title { color: #4caf50 !important; }
+html.dark .lc-lime .lc-title { color: #cddc39 !important; }
+html.dark .lc-orange .lc-title { color: #ff9800 !important; }
+
+/* 5. Main Building Bin Text - White as requested */
+html.dark .bin-sub {
+    color: #ffffff !important;
+}
+
+/* 6. Right Stack (Total Bins, etc) - Black Text */
+html.dark .ms-content h4,   /* Title: 'Total Bins' */
+html.dark .ms-content h2,   /* Value: '0', '45%' */
+html.dark .ms-content h2 span { /* Fix for Dashboard.jsx which wraps value in span */
+    color: #000000 !important;
+}
+html.dark .ms-icon {        /* Icon should probably remain colored or whatever default is */
+    /* No change needed unless it disappeared */
+}
+
+/* 7. Right Stack Trend Text - Keep Green (already has class, just ensuring visibility) */
+html.dark .ms-trend {
+    /* Usually this is .ms-trend { color: #4caf50 } in main CSS.
+       If .card text override made it black, we need to ensure it stays green */
+    color: #4caf50 !important; 
+}
+/* Ensure the sub-part of trend ("+2 from...") is also green/visible if its a span */
+html.dark .ms-trend span {
+    color: #4caf50 !important;
+}
+
+/* Explicitly fix Archive table text derived from generic p/span selectors */
+html.dark .archive-table tbody tr {
+    color: #101828;
+}
+
+/* Archive Revert */
+html.dark .archive-table-wrapper, 
+html.dark .archive-pagination {
+    background-color: white;
+    border-color: #e4e7ec;
+}
+html.dark .archive-table thead {
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e4e7ec;
+}
+html.dark .archive-table th { color: #667085; }
+html.dark .archive-table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    color: #101828;
+}
+html.dark .archive-table tbody tr:hover { background-color: #f9fafb; }
+html.dark .pagination-btn {
+    background-color: white;
+    border-color: #e4e7ec;
+    color: #667085;
+}
+html.dark .pagination-btn:hover:not(:disabled) { 
+    border-color: #027a5e;
+    color: #027a5e;
+}
+html.dark .pagination-info { color: #667085; }
+
+/* Profile Revert */
+html.dark .profile-card,
+html.dark .profile-section {
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+html.dark .profile-title,
+html.dark .profile-card__name { color: #101828; } /* Or Green for title? Profile title was Green. */
+html.dark .profile-title { color: #058b6e !important; }
+
+html.dark .profile-card__email { color: #667085; }
+html.dark .profile-card__role { color: #344054; }
+html.dark .profile-card__identifier { color: #6b7280; }
+
+/* Customize Revert */
+html.dark .customize-title { color: #101828; }
+html.dark .customize-bin-list {
+    background-color: white;
+    border-color: #e4e7ec;
+}
+html.dark .bin-list-search i { color: #ff0000; }
+
+/* Modal Revert */
+html.dark .modal-dialog {
+    background-color: white;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+html.dark .modal-title { color: #111827; }
+html.dark .modal-subtitle { color: #6b7280; }
+

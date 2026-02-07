@@ -94,6 +94,11 @@ export default function Settings() {
       const newTheme = e.target.value
       setTheme(newTheme)
       localStorage.setItem('sb-theme', newTheme)
+      if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark')
+      } else {
+          document.documentElement.classList.remove('dark')
+      }
   }
 
   const handleSave = async () => {

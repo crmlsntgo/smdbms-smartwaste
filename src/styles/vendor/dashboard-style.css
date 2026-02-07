@@ -413,17 +413,19 @@ body {
 
 /* --- System Overview --- */
 .system-card {
-    background: #007f5f;
-    color: white;
+    background: white; /* Changed from #007f5f to white to match other cards */
+    color: #333; /* Default text color for body */
     padding: 0;
     overflow: hidden;
 }
 .system-header {
+    background: #007f5f; /* Moved green background to header */
     padding: 20px;
     border-bottom: 1px solid rgba(255,255,255,0.1);
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
+    color: white; /* Ensure header text is white */
 }
 .system-title { font-size: 16px; font-weight: 600; }
 .last-updated { font-size: 10px; opacity: 0.8; }
