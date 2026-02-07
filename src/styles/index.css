@@ -69,7 +69,7 @@ html.dark .modal-title {
 }
 
 html.dark .sb-notification-dropdown__header-title {
-    color: #000000 !important;
+    color: #ffffff !important;
 }
 
 html.dark h3 {
@@ -196,8 +196,8 @@ html.dark .sb-notification-item__meta {
 
 /* Settings Panels Revert */
 html.dark .sb-settings-aside {
-    background-color: white;
-    border-right: 1px solid #e4e7ec;
+    background-color: transparent;
+    border-right: none;
 }
 
 html.dark .sb-settings-nav__item {
