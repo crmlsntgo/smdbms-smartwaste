@@ -170,8 +170,8 @@
 
 .sb-notification-dropdown {
   position: absolute;
-  right: 0;
-  top: 46px;
+  right: 13px;
+  top: 77px;
   width: 380px;
   max-width: 90vw;
   max-height: 480px;

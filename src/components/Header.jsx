@@ -131,7 +131,7 @@ export default function Header() {
 
           <div className="sb-notification-dropdown" id="sb-notification-dropdown" hidden={!showNotifications}>
             <div className="sb-notification-dropdown__header">
-                <h3>🔔 Notifications</h3>
+                <h3 class="sb-notification-dropdown__header-title">Notifications</h3>
             </div>
             <div className="sb-notification-dropdown__body">
                 <div className="sb-notification-item">
@@ -146,20 +146,6 @@ export default function Header() {
                     <div className="sb-notification-item__content">
                         <div className="sb-notification-item__title">Bin4: Full</div>
                         <div className="sb-notification-item__meta">5 hours ago</div>
-                    </div>
-                </div>
-                 <div className="sb-notification-item">
-                    <div className="sb-notification-item__icon">⚠</div>
-                    <div className="sb-notification-item__content">
-                        <div className="sb-notification-item__title">Bin1: Emptied/Changed</div>
-                        <div className="sb-notification-item__meta">5 hours ago</div>
-                    </div>
-                </div>
-                 <div className="sb-notification-item">
-                    <div className="sb-notification-item__icon">⚠</div>
-                    <div className="sb-notification-item__content">
-                        <div className="sb-notification-item__title">Bin3: Emptied/Changed</div>
-                        <div className="sb-notification-item__meta">1 hour ago</div>
                     </div>
                 </div>
                 <div className="sb-notification-item">

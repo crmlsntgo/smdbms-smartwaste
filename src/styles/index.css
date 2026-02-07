@@ -42,6 +42,16 @@ html.dark h1 {
     color: #058b6e !important;
 }
 
+html.dark .users-title {
+    color: #058b6e !important;
+}
+
+html.dark .users-count,
+html.dark .filter-label,
+html.dark .fas.fa-filter.filter-icon {
+    color: #ffffff !important;
+}
+
 html.dark h2 {
     color: #ffffff !important;
 }
@@ -55,6 +65,10 @@ html.dark .config-title {
 }
 
 html.dark .modal-title {
+    color: #000000 !important;
+}
+
+html.dark .sb-notification-dropdown__header-title {
     color: #000000 !important;
 }
 
