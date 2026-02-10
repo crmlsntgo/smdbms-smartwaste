@@ -16,6 +16,7 @@ export default function Register() {
   const [passwordError, setPasswordError] = useState(false)
   const [emailError, setEmailError] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
+  const [isRegistering, setIsRegistering] = useState(false)
 
   // Helper to generate unique identifier (matching legacy 8-digit format)
   const generateUniqueIdentifier = async (db) => {
@@ -82,6 +83,8 @@ export default function Register() {
         return
     }
 
+    setIsRegistering(true)
+
     try {
       const app = initFirebase()
       const auth = getAuth(app)
@@ -123,6 +126,7 @@ export default function Register() {
       window.location.href = '/login'
 
     } catch (error) {
+      setIsRegistering(false)
       console.error('Registration error:', error)
       let errorMessage = 'Registration failed: '
       switch (error.code) {
@@ -279,7 +283,9 @@ export default function Register() {
             </span>
           </div>
 
-          <button id="submit" type="submit" className="signup-btn">SIGN UP</button>
+          <button id="submit" type="submit" className="signup-btn" disabled={isRegistering}>
+            {isRegistering ? 'SIGNING UP...' : 'SIGN UP'}
+          </button>
         </form>
 
         <p className="signin-text"> Already have an account? <a href="/login" className="signin-link"> <u>Sign In</u></a></p>
