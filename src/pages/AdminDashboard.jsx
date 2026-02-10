@@ -7,6 +7,66 @@ import Sidebar from '../components/Sidebar'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 
+// Trend Chart logic
+const TrendChart = ({ data }) => {
+    const total = data.recyclable + data.biodegradable + data.non_biodegradable
+    const norm = val => total > 0 ? (val / total) * 100 : 0
+    
+    const current = {
+        recyclable: norm(data.recyclable),
+        biodegradable: norm(data.biodegradable),
+        non_biodegradable: norm(data.non_biodegradable)
+    }
+
+    // Past data simulation from chart-utils.js
+    const series = [
+      { color: '#4caf50', points: [35, 40, current.recyclable] },
+      { color: '#cddc39', points: [25, 28, current.biodegradable] },
+      { color: '#ff9800', points: [40, 32, current.non_biodegradable] }
+    ]
+
+    const width = 300
+    const height = 150
+    const padding = 30
+    // Map 0-100 to Y=130-30
+    const mapY = val => 130 - val
+    // X Coords: padding + 40, + 120, + 200
+    const xCoords = [70, 150, 230]
+
+    const months = []
+    for (let i = 2; i >= 0; i--) {
+        const d = new Date()
+        d.setMonth(d.getMonth() - i)
+        months.push(d.toLocaleString('default', { month: 'short' }))
+    }
+
+    return (
+        <svg className="line-chart-svg" viewBox="0 0 300 150">
+             {/* Grid */}
+             {[30, 70, 110].map(y => <line key={y} x1={padding} y1={y} x2={width-10} y2={y} className="grid-line" stroke="#e0e0e0" strokeWidth="1" />)}
+             {/* Labels Y */}
+             <text x="10" y="140" className="trend-axis-text" fontSize="10" fill="#999">0</text>
+             <text x="10" y="30" className="trend-axis-text" fontSize="10" fill="#999">100</text>
+             {/* Labels X */}
+             {months.map((m, i) => (
+                 <text key={i} x={xCoords[i]} y="145" className="trend-axis-text" textAnchor="middle" fontSize="10" fill="#999">{m}</text>
+             ))}
+             {/* Series */}
+             {series.map((s, si) => {
+                 const pointsStr = s.points.map((val, i) => `${xCoords[i]},${mapY(val)}`).join(' ')
+                 return (
+                     <g key={si}>
+                         <polyline points={pointsStr} fill="none" stroke={s.color} strokeWidth="2" className="chart-line" />
+                         {s.points.map((val, i) => (
+                             <circle key={i} cx={xCoords[i]} cy={mapY(val)} r="3" fill="white" stroke={s.color} strokeWidth="2" className="chart-dot" />
+                         ))}
+                     </g>
+                 )
+             })}
+        </svg>
+    )
+}
+
 export default function AdminDashboard() {
   const [user, setUser] = useState(null)
   const [userName, setUserName] = useState('')
@@ -171,65 +231,7 @@ export default function AdminDashboard() {
       )`
   }
 
-  // Trend Chart logic
-  const TrendChart = ({ data }) => {
-      const total = data.recyclable + data.biodegradable + data.non_biodegradable
-      const norm = val => total > 0 ? (val / total) * 100 : 0
-      
-      const current = {
-          recyclable: norm(data.recyclable),
-          biodegradable: norm(data.biodegradable),
-          non_biodegradable: norm(data.non_biodegradable)
-      }
-
-      // Past data simulation from chart-utils.js
-      const series = [
-        { color: '#4caf50', points: [35, 40, current.recyclable] },
-        { color: '#cddc39', points: [25, 28, current.biodegradable] },
-        { color: '#ff9800', points: [40, 32, current.non_biodegradable] }
-      ]
-
-      const width = 300
-      const height = 150
-      const padding = 30
-      // Map 0-100 to Y=130-30
-      const mapY = val => 130 - val
-      // X Coords: padding + 40, + 120, + 200
-      const xCoords = [70, 150, 230]
-
-      const months = []
-      for (let i = 2; i >= 0; i--) {
-          const d = new Date()
-          d.setMonth(d.getMonth() - i)
-          months.push(d.toLocaleString('default', { month: 'short' }))
-      }
-
-      return (
-          <svg className="line-chart-svg" viewBox="0 0 300 150">
-               {/* Grid */}
-               {[30, 70, 110].map(y => <line key={y} x1={padding} y1={y} x2={width-10} y2={y} className="grid-line" stroke="#e0e0e0" strokeWidth="1" />)}
-               {/* Labels Y */}
-               <text x="10" y="140" className="trend-axis-text" fontSize="10" fill="#999">0</text>
-               <text x="10" y="30" className="trend-axis-text" fontSize="10" fill="#999">100</text>
-               {/* Labels X */}
-               {months.map((m, i) => (
-                   <text key={i} x={xCoords[i]} y="145" className="trend-axis-text" textAnchor="middle" fontSize="10" fill="#999">{m}</text>
-               ))}
-               {/* Series */}
-               {series.map((s, si) => {
-                   const pointsStr = s.points.map((val, i) => `${xCoords[i]},${mapY(val)}`).join(' ')
-                   return (
-                       <g key={si}>
-                           <polyline points={pointsStr} fill="none" stroke={s.color} strokeWidth="2" className="chart-line" />
-                           {s.points.map((val, i) => (
-                               <circle key={i} cx={xCoords[i]} cy={mapY(val)} r="3" fill="white" stroke={s.color} strokeWidth="2" className="chart-dot" />
-                           ))}
-                       </g>
-                   )
-               })}
-          </svg>
-      )
-  }
+  // Trend Chart logic component was moved outside
 
   // Formatting for Values
   const getPercent = (val, total) => total > 0 ? Math.round((val / total) * 100) : 0

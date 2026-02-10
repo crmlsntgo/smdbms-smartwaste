@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useSearchHighlight } from '../hooks/useSearchHighlight'
 import { getAuth, updateProfile, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
 import { getFirestore, doc, getDoc, updateDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
@@ -35,6 +37,16 @@ export default function Settings() {
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [passForm, setPassForm] = useState({ old: '', new: '', confirm: '' })
   const [passVis, setPassVis] = useState({ old: false, new: false, confirm: false })
+  
+  const location = useLocation()
+  const { getHighlightClass } = useSearchHighlight()
+  
+  // Handle Global Search Navigation
+  useEffect(() => {
+      if (location.state && location.state.tab) {
+          setActiveTab(location.state.tab)
+      }
+  }, [location])
 
   useEffect(() => {
     import('../styles/vendor/settings.css').catch(err => console.error('Failed to load settings CSS', err))
@@ -332,7 +344,7 @@ export default function Settings() {
                   
                   {/* Appearance Panel */}
                   <div className="sb-settings-panel" style={{display: activeTab === 'appearance' ? 'block' : 'none'}}>
-                    <div className="sb-card sb-appearance-card">
+                    <div id="setting-theme" className={`sb-card sb-appearance-card ${getHighlightClass('setting-theme')}`}>
                       <h2 className="sb-card-title">Theme</h2>
                       <div className="sb-appearance-options">
                         <label className="sb-appearance-option">
@@ -351,7 +363,7 @@ export default function Settings() {
                   <div className="sb-settings-panel" style={{display: activeTab === 'personal' ? 'block' : 'none'}}>
                     <div className="sb-settings-panel-content">
                       
-                      <div className="sb-card sb-personal-card">
+                      <div id="setting-personal" className={`sb-card sb-personal-card ${getHighlightClass('setting-personal')}`}>
                         <h3 className="sb-card-title">Personal Information</h3>
                         <div className="sb-form-grid">
                           <div className="form-field">
@@ -397,9 +409,9 @@ export default function Settings() {
                         </div>
                       </div>
 
-                      <div className="sb-card sb-account-settings-card">
+                      <div id="setting-account" className={`sb-card sb-account-settings-card ${getHighlightClass('setting-account')}`}>
                         <h3 className="sb-card-title">Account Settings</h3>
-                        <div className="sb-settings-item">
+                        <div id="setting-password" className={`sb-settings-item ${getHighlightClass('setting-password')}`}>
                           <div className="sb-settings-item-header">
                             <div>
                               <p className="sb-settings-item-title">Password</p>
@@ -408,7 +420,7 @@ export default function Settings() {
                             <button className="btn-secondary" onClick={() => setShowPasswordModal(true)}>Change Password</button>
                           </div>
                         </div>
-                        <div className="sb-settings-item">
+                        <div id="setting-archive-acc" className={`sb-settings-item ${getHighlightClass('setting-archive-acc')}`}>
                           <div className="sb-settings-item-header">
                             <div>
                               <p className="sb-settings-item-title">Archive Account</p>

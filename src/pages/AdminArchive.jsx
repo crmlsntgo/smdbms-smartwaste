@@ -587,18 +587,18 @@ export default function AdminArchive() {
 
                             <div className="stat-card">
                                 <div className="stat-card__header">
-                                    <span className="stat-card__dot stat-card__dot--red"></span>
-                                    <span className="stat-card__label">Permanently Deleted</span>
-                                </div>
-                                <div className="stat-card__value" id="statDeleted">{stats.deleted}</div>
-                            </div>
-
-                            <div className="stat-card">
-                                <div className="stat-card__header">
                                     <span className="stat-card__dot stat-card__dot--green"></span>
                                     <span className="stat-card__label">Restored Bins</span>
                                 </div>
                                 <div className="stat-card__value" id="statRestored">{stats.restored}</div>
+                            </div>
+
+                            <div className="stat-card">
+                                <div className="stat-card__header">
+                                    <span className="stat-card__dot stat-card__dot--red"></span>
+                                    <span className="stat-card__label">Permanently Deleted</span>
+                                </div>
+                                <div className="stat-card__value" id="statDeleted">{stats.deleted}</div>
                             </div>
                         </div>
 

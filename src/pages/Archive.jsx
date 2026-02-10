@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useSearchHighlight } from '../hooks/useSearchHighlight'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { 
     getFirestore, 
@@ -45,6 +47,24 @@ export default function Archive() {
     const [showRestoreModal, setShowRestoreModal] = useState(false)
     const [showBatchRestoreModal, setShowBatchRestoreModal] = useState(false)
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+    
+    const location = useLocation()
+    const { getHighlightClass } = useSearchHighlight()
+    
+    // Handle Global Search Navigation
+    useEffect(() => {
+        if (location.state) {
+            // Filter selection (archived, restored, deleted)
+            if (location.state.filter) {
+                setCurrentFilter(location.state.filter)
+            } 
+            // Highlight specific item ?
+            if (location.state.highlightTerm && !location.state.disableSearchFilter) {
+               setSearchTerm(location.state.highlightTerm)
+               // Also reset filter if needed, or keep it if it matches context
+            }
+        }
+    }, [location]) // Dependency on bins so it runs after render
 
     // --- Stats ---
     const stats = useMemo(() => {
@@ -472,7 +492,7 @@ export default function Archive() {
 
                         {/* Stats Cards */}
                         <div className="archive-stats">
-                            <div className="stat-card">
+                            <div id="archive-overview" className={`stat-card ${getHighlightClass('archive-overview')}`}>
                                 <div className="stat-card__header">
                                     <span className="stat-card__dot stat-card__dot--blue"></span>
                                     <span className="stat-card__label">Total Archived Bins</span>
@@ -480,13 +500,25 @@ export default function Archive() {
                                 <div className="stat-card__value" id="statTotalArchived">{stats.archived}</div>
                             </div>
 
-                            <div className="stat-card">
+                            <div id="restored-overview" className={`stat-card ${getHighlightClass('restored-overview')}`}>
                                 <div className="stat-card__header">
                                     <span className="stat-card__dot stat-card__dot--green"></span>
                                     <span className="stat-card__label">Restored Bins</span>
                                 </div>
                                 <div className="stat-card__value" id="statRestored">{stats.restored}</div>
                             </div>
+
+                            {userRole === 'admin' && (
+                                <div id="deleted-overview" className={`stat-card ${getHighlightClass('deleted-overview')}`}>
+                                    <div className="stat-card__header">
+                                        <span className="stat-card__dot stat-card__dot--red"></span>
+                                        <span className="stat-card__label">Permanently Deleted</span>
+                                    </div>
+                                    <div className="stat-card__value" id="statDeleted">
+                                        {allBins.filter(b => b.status === 'Deleted').length}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Filter Tabs and Search */}

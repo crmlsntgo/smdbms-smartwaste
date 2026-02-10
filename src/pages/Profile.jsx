@@ -30,6 +30,7 @@ export default function Profile() {
         let mounted = true
 
         const fetchProfile = async (user) => {
+            if (!user) return;
             try {
                 const docRef = doc(db, 'users', user.uid)
                 const docSnap = await getDoc(docRef)
@@ -61,22 +62,21 @@ export default function Profile() {
             }
         }
 
-        const currentUser = auth.currentUser
-        if (currentUser) {
-            // Auth already available; fetch immediately and avoid full-screen loading.
-            fetchProfile(currentUser)
-            return () => { mounted = false }
-        }
-
-        // If auth isn't ready yet, show loading until it resolves.
-        setLoading(true)
         const unsubscribe = auth.onAuthStateChanged((user) => {
-            if (user) {
-                fetchProfile(user)
-            } else {
-                window.location.href = '/login'
+            if (mounted) {
+                if (user) {
+                    fetchProfile(user)
+                } else {
+                    window.location.href = '/login'
+                }
             }
         })
+
+        if (!auth.currentUser) {
+             setLoading(true)
+        } else {
+             fetchProfile(auth.currentUser)
+        }
 
         return () => {
             mounted = false

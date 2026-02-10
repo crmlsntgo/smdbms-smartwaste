@@ -57,6 +57,7 @@
 }
 
 .stat-card {
+  position: relative;
   background: white;
   border-radius: 10px;
   padding: 16px;

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getAuth, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
+import GlobalSearch from './GlobalSearch'
 import '../styles/vendor/header.css'
 
 export default function Header() {
@@ -100,15 +101,7 @@ export default function Header() {
       </div>
 
       <div className="sb-header__right">
-        <form className="sb-search" role="search" onSubmit={(e)=>e.preventDefault()}>
-          <span className="sb-search__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="11" cy="11" r="6" stroke="#98A2B3" strokeWidth="1.6" fill="none" />
-              <line x1="15" y1="15" x2="20" y2="20" stroke="#98A2B3" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </span>
-          <input id="sb-global-search" className="sb-search__input" type="search" placeholder="Search..." aria-label="Search" />
-        </form>
+        <GlobalSearch />
 
         <div className="sb-notification-wrapper" ref={notifRef}>
           <button 
@@ -131,7 +124,7 @@ export default function Header() {
 
           <div className="sb-notification-dropdown" id="sb-notification-dropdown" hidden={!showNotifications}>
             <div className="sb-notification-dropdown__header">
-                <h3 class="sb-notification-dropdown__header-title">Notifications</h3>
+                <h3 className="sb-notification-dropdown__header-title">Notifications</h3>
             </div>
             <div className="sb-notification-dropdown__body">
                 <div className="sb-notification-item">

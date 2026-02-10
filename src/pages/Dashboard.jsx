@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { getFirestore, doc, onSnapshot, collection } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
+import { useSearchHighlight } from '../hooks/useSearchHighlight'
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
@@ -13,6 +14,9 @@ export default function Dashboard() {
   const [fillLevel, setFillLevel] = useState(0)
   const [totalBins, setTotalBins] = useState(15)
   const [viewAllBins, setViewAllBins] = useState(false)
+  const [user, setUser] = useState(null)
+  
+  const { getHighlightClass } = useSearchHighlight()
   
   // Initialize Firebase once
   const app = initFirebase()
@@ -21,13 +25,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Auth Listener
-    const unsubscribeAuth = auth.onAuthStateChanged(user => {
-      if (user) {
-        setUserName(user.displayName || (user.email ? user.email.split('@')[0] : 'User'))
+    const unsubscribeAuth = auth.onAuthStateChanged(currentUser => {
+      if (currentUser) {
+        setUser(currentUser)
+        setUserName(currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'))
       } else {
          window.location.href = '/login'
       }
     })
+    return () => unsubscribeAuth()
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
 
     // Bin subscription (BIN001)
     const dashboardRef = doc(db, 'dashboard', 'BIN001')
@@ -49,7 +59,7 @@ export default function Dashboard() {
             }
         }
     }, (error) => {
-        console.error("Error listening to dashboard:", error)
+        if (error.code !== 'permission-denied') console.warn("Error listening to dashboard:", error.message)
     })
 
     // Total Bins subscription
@@ -57,15 +67,14 @@ export default function Dashboard() {
     const unsubscribeTotal = onSnapshot(binsRef, (snap) => {
         setTotalBins(snap.size)
     }, (error) => {
-        console.error("Error listening to total bins:", error)
+        if (error.code !== 'permission-denied') console.warn("Error listening to total bins:", error.message)
     })
 
     return () => {
-        unsubscribeAuth()
         unsubscribeBin()
         unsubscribeTotal()
     }
-  }, [])
+  }, [user])
 
   // Derived state for Waste Overview Chart
   const { pRecyc, pBio, pNonBio } = useMemo(() => {
@@ -149,7 +158,7 @@ export default function Dashboard() {
                 {/* TOP ROW */}
                 <div className="row-top">
                     {/* Waste Overview */}
-                    <div className="card waste-card flex-2">
+                    <div id="dash-waste" className={`card waste-card flex-2 ${getHighlightClass('dash-waste')}`}>
                         <div className="waste-header">
                             <h3><i className="far fa-clock"></i> Waste Overview</h3>
                             <p>Distribution and trends across waste categories</p>
@@ -157,7 +166,7 @@ export default function Dashboard() {
                         <div className="waste-body">
                             <div className="charts-row">
                                 {/* Current Distribution */}
-                                <div className="donut-section">
+                                <div id="dash-waste-dist" className={`donut-section ${getHighlightClass('dash-waste-dist')}`}>
                                     <div style={{textAlign: 'center'}}>
                                         <h4 style={{fontSize: '12px', marginBottom: '20px'}}>Current Distribution</h4>
                                         <div className="donut-chart" style={{background: wasteGradient}}>
@@ -244,18 +253,18 @@ export default function Dashboard() {
                         </div>
                         <div className="system-body">
                             {/* Stats List */}
-                            <div className="sys-stat-row">
+                            <div id="dash-active" className={`sys-stat-row ${getHighlightClass('dash-active')}`}>
                                 <span>Active Bins</span>
                                 <span className="sys-val"><span>12/15</span> <span className="badge-active">Active</span></span>
                             </div>
-                            <div className="sys-stat-row">
+                            <div id="dash-fill" className={`sys-stat-row ${getHighlightClass('dash-fill')}`}>
                                 <span>Average Fill Level</span>
                                 <div style={{display:'flex', flexDirection:'column', alignItems:'flexEnd'}}>
                                     <span className="sys-val" style={{marginBottom:'4px'}}>{fillLevel}%</span>
                                     <div className="progress-track"><div className="progress-fill" style={{width: `${fillLevel}%`, background: '#ffc107'}}></div></div>
                                 </div>
                             </div>
-                            <div className="sys-stat-row">
+                            <div id="dash-empty" className={`sys-stat-row ${getHighlightClass('dash-empty')}`}>
                                 <span>Bins Requiring Emptying</span>
                                 <div style={{display:'flex', flexDirection:'column', alignItems:'flexEnd'}}>
                                      <span className="sys-val" style={{marginBottom:'4px'}}>3</span>
@@ -263,7 +272,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
-                            <div className="maint-title"><i className="far fa-calendar-alt" style={{color:'#ff9800'}}></i> Maintenance Schedule</div>
+                            <div id="dash-maint" className={`maint-title ${getHighlightClass('dash-maint')}`}><i className="far fa-calendar-alt" style={{color:'#ff9800'}}></i> Maintenance Schedule</div>
                             <div className="maint-list">
                                 <div className="maint-item">
                                     <div className="m-dot d-green"></div>
@@ -366,7 +375,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Hazard Alert (Toggleable) */}
-                    <div className={`card hazardous-card flex-0-8 ${viewAllBins ? 'hidden' : ''}`} id="hazardCard">
+                    <div className={`card hazardous-card flex-0-8 ${viewAllBins ? 'hidden' : ''} ${getHighlightClass('dash-haz')}`} id="dash-haz">
                          <div className="haz-header">
                             <i className="fas fa-exclamation-triangle"></i> Hazardous Waste Alert
                         </div>
@@ -406,7 +415,7 @@ export default function Dashboard() {
 
                     {/* Right Stats Stack (Toggleable) */}
                     <div className={`right-stack flex-1 ${viewAllBins ? 'hidden' : ''}`} id="rightStack">
-                        <div className="mini-stat">
+                        <div id="dash-total" className={`mini-stat ${getHighlightClass('dash-total')}`}>
                             <div className="ms-content">
                                 <h4>Total Bins</h4>
                                 <h2><span>{totalBins}</span></h2>

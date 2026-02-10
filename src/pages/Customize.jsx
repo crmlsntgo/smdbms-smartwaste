@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useSearchHighlight } from '../hooks/useSearchHighlight'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { 
     getFirestore, 
@@ -58,6 +60,33 @@ export default function Customize() {
   const [lastDoc, setLastDoc] = useState(null)
   const [hasMore, setHasMore] = useState(true)
   const PAGE_SIZE = 200
+  
+  const location = useLocation()
+  
+  const { getHighlightClass } = useSearchHighlight()
+  
+  // Handle Global Search Navigation - Data Population
+  useEffect(() => {
+      if (location.state) {
+          if (location.state.highlightId && !location.state.highlightId.toString().startsWith('custom-')) {
+                 // Bin ID logic
+                 setSelectedBinId(location.state.highlightId)
+                 if (location.state.item) {
+                     // ... populate form
+                     const data = location.state.item
+                     setFormData({
+                          binName: data.name || data.binName || '',
+                          capacity: data.capacity || '',
+                          serial: data.serial || data.binId || '',
+                          threshold: data.threshold || '',
+                          location: data.location || '',
+                          imageUrl: data.imageUrl || '',
+                          sensorStatus: data.sensorStatus || 'disconnected'
+                     })
+                 }
+          }
+      }
+  }, [location]) 
 
   // Maintain ref for event listener access to current state
   const selectedBinIdRef = useRef(selectedBinId)
@@ -69,33 +98,39 @@ export default function Customize() {
     const app = initFirebase()
     const auth = getAuth(app)
     const db = getFirestore(app)
-
-    // Sync Listener using Metadata (Quota Efficient)
-    const unsubMeta = onSnapshot(doc(db, 'settings', 'binMetadata'), (snap) => {
-        if (snap.exists()) {
-            const data = snap.data();
-            if (data.targetIds && (data.lastAction === 'delete' || data.lastAction === 'archive')) {
-                setBins(prev => prev.filter(b => !data.targetIds.includes(String(b.id))));
-                
-                // If the currently selected bin was removed externally
-                if (data.targetIds.includes(String(selectedBinIdRef.current))) {
-                    setSelectedBinId(null);
-                    setFormData({ binName:'', capacity:'', serial:'', threshold:'', location:'', imageUrl:'', sensorStatus:'' });
-                    // No alert needed, just clear it. Or show small toast.
-                }
-            } else if (data.lastAction === 'restore' || data.lastAction === 'create') {
-                // Determine if we should reload. 
-                // For simplicity and consistency, let's reload the list if an update happens.
-                // But to be quota efficient, maybe we only want to fetch if we are utility staff?
-                // The requirements emphasize correctness.
-                // A lightweight reload logic:
-                 loadBins(db, true); // Refresh list
-            }
-        }
-    });
+    
+    let unsubMeta = () => {};
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
+            // Sync Listener using Metadata (Quota Efficient)
+            try {
+                unsubMeta = onSnapshot(doc(db, 'settings', 'binMetadata'), (snap) => {
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        if (data.targetIds && (data.lastAction === 'delete' || data.lastAction === 'archive')) {
+                            setBins(prev => prev.filter(b => !data.targetIds.includes(String(b.id))));
+                            
+                            // If the currently selected bin was removed externally
+                            if (data.targetIds.includes(String(selectedBinIdRef.current))) {
+                                setSelectedBinId(null);
+                                setFormData({ binName:'', capacity:'', serial:'', threshold:'', location:'', imageUrl:'', sensorStatus:'' });
+                                // No alert needed, just clear it. Or show small toast.
+                            }
+                        } else if (data.lastAction === 'restore' || data.lastAction === 'create') {
+                            // Determine if we should reload. 
+                            // For simplicity and consistency, let's reload the list if an update happens.
+                            // But to be quota efficient, maybe we only want to fetch if we are utility staff?
+                            // The requirements emphasize correctness.
+                            // A lightweight reload logic:
+                             loadBins(db, true); // Refresh list
+                        }
+                    }
+                }, (error) => {
+                    if (error.code !== 'permission-denied') console.warn("Meta listener error:", error.message)
+                });
+            } catch (e) { console.warn("Meta listener setup missing", e) }
+
             // Check Role
             try {
                 const userDoc = await getDoc(doc(db, 'users', user.uid))
@@ -455,7 +490,7 @@ export default function Customize() {
             {/* Three Column Layout */}
             <div className="customize-layout">
                 {/* Bin List (Left) */}
-                <div className="customize-bin-list">
+                <div className="customize-bin-list" id="custom-bin-list">
                     <div className="config-header">
                         <h3 className="config-title">Bin List</h3>
                     </div>
@@ -480,7 +515,8 @@ export default function Customize() {
                                 {filteredBins.map(bin => (
                                     <div 
                                         key={bin.id} 
-                                        className={`bin-item ${selectedBinId === bin.id ? 'bin-item--active' : ''}`}
+                                        id={bin.id}
+                                        className={`bin-item ${selectedBinId === bin.id ? 'bin-item--active' : ''} ${getHighlightClass(bin.id)}`}
                                         onClick={() => selectBin(bin)}
                                     >
                                         <div className="bin-item__icon" style={{backgroundImage: bin.imageUrl ? `url('${bin.imageUrl}')` : 'none', backgroundColor: '#e5e7eb'}}></div>
@@ -504,7 +540,7 @@ export default function Customize() {
                 </div>
 
                 {/* Bin Configuration (Middle) */}
-                <div className="customize-bin-config">
+                <div className="customize-bin-config" id="custom-bin-config">
                     <div className="config-header">
                         <h3 className="config-title">Bin Configuration</h3>
                         <div className="config-actions">
@@ -519,33 +555,33 @@ export default function Customize() {
 
                     <form id="bin-form" className="config-form" onSubmit={(e) => e.preventDefault()}>
                         <div className="form-row">
-                            <div className="form-group">
+                            <div id="custom-bin-name" className={`form-group ${getHighlightClass('custom-bin-name')}`}>
                                 <label htmlFor="bin-name">Bin Name</label>
                                 <input type="text" id="bin-name" value={formData.binName} onChange={handleInputChange} disabled={!selectedBinId} />
                             </div>
-                            <div className="form-group">
+                            <div id="custom-capacity" className={`form-group ${getHighlightClass('custom-capacity')}`}>
                                 <label htmlFor="bin-capacity">Capacity (Liters)</label>
                                 <input type="text" id="bin-capacity" value={formData.capacity} onChange={handleInputChange} disabled={!selectedBinId} />
                             </div>
                         </div>
 
                         <div className="form-row">
-                            <div className="form-group">
+                            <div id="custom-serial" className={`form-group ${getHighlightClass('custom-serial')}`}>
                                 <label htmlFor="bin-serial">Bin Serial Number</label>
                                 <input type="text" id="bin-serial" value={formData.serial} readOnly disabled={!selectedBinId} style={{background:'#f9fafb'}} />
                             </div>
-                            <div className="form-group">
+                            <div id="custom-threshold" className={`form-group ${getHighlightClass('custom-threshold')}`}>
                                 <label htmlFor="bin-threshold">Alert Threshold (%)</label>
                                 <input type="number" id="bin-threshold" value={formData.threshold} onChange={handleInputChange} min="1" max="100" disabled={!selectedBinId} />
                             </div>
                         </div>
 
                         <div className="form-row">
-                            <div className="form-group">
+                            <div id="custom-location" className={`form-group ${getHighlightClass('custom-location')}`}>
                                 <label htmlFor="bin-location">Location</label>
                                 <input type="text" id="bin-location" value={formData.location} onChange={handleInputChange} disabled={!selectedBinId} />
                             </div>
-                            <div className="form-group">
+                            <div id="custom-sensor" className={`form-group ${getHighlightClass('custom-sensor')}`}>
                                 <label>Sensor Connection</label>
                                 <div className="sensor-status" style={{color: formData.sensorStatus === 'connected' ? '#059669' : '#6b7280'}}>
                                     <span className={`status-dot ${formData.sensorStatus === 'connected' ? 'status-dot--connected' : ''}`}></span>
@@ -555,15 +591,15 @@ export default function Customize() {
                         </div>
 
                         <div className="form-row">
-                            <div className="form-group full-width">
+                            <div id="custom-image" className={`form-group full-width ${getHighlightClass('custom-image')}`}>
                                 <label htmlFor="bin-image-url">Bin Image URL</label>
                                 <input type="text" id="bin-image-url" value={formData.imageUrl} onChange={handleInputChange} placeholder="https://..." disabled={!selectedBinId} />
                             </div>
                         </div>
 
                         {/* Additional Information */}
-                        <div className="additional-info">
-                            <button type="button" className="info-toggle" onClick={() => setShowInfo(!showInfo)}>
+                        <div className="additional-info" id="custom-info">
+                            <button type="button" className={`info-toggle ${getHighlightClass('custom-info')}`} onClick={() => setShowInfo(!showInfo)}>
                                 <i className="fas fa-info-circle"></i> Additional Information
                             </button>
                             <div className="info-details" style={{display: showInfo ? 'block' : 'none'}}>
