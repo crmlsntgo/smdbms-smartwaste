@@ -99,6 +99,14 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isAdmin();
     }
 
+    // Hazardous Detections (MISSING PREVIOUSLY)
+    match /hazardous_detections/{detectionId} {
+      allow read: if isSignedIn() && (isAdmin() || isUtility());
+      // Server writes to this, so client write permissions are not strictly needed unless testing
+      allow create: if false; 
+      allow update: if false;
+    }
+
     // Account Archive (for users archiving their own accounts)
     match /account_archive/{userId} {
       // Allow users to create/write their own archive record

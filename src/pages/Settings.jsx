@@ -193,6 +193,7 @@ export default function Settings() {
           })
 
           setNotification({ type: 'success', message: 'Password changed successfully.' })
+          setTimeout(() => setNotification(null), 3000)
           setShowPasswordModal(false)
           setPassForm({ old: '', new: '', confirm: '' })
 
