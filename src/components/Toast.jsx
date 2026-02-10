@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-const Toast = ({ message, show, type = 'success', onClose, duration = 3000 }) => {
+const Toast = ({ message, show, type = 'success', onClose, duration = 3000, style = {} }) => {
   useEffect(() => {
     if (show) {
       const timer = setTimeout(() => {
@@ -38,7 +38,8 @@ const Toast = ({ message, show, type = 'success', onClose, duration = 3000 }) =>
         justifyContent: 'space-between',
         minWidth: '250px',
         animation: 'slideIn 0.3s ease-out',
-        fontWeight: '500'
+        fontWeight: '500',
+        ...style
       }}
     >
       <span>{message}</span>
