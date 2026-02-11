@@ -11,9 +11,11 @@ export default function Login() {
   const [passwordError, setPasswordError] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    setIsLoggingIn(true)
     try {
       const app = initFirebase()
       const auth = getAuth(app)
@@ -25,6 +27,7 @@ export default function Login() {
         const uname = await getDoc(doc(db, 'usernames', email))
         if (!uname.exists()) {
              alert('User not found')
+             setIsLoggingIn(false)
              return
         }
         resolvedEmail = uname.data().email
@@ -51,6 +54,7 @@ export default function Login() {
           if (archiveDoc.exists()) {
              alert('This account has been archived. Please contact support to restore it.')
              await auth.signOut()
+             setIsLoggingIn(false)
              return
           }
           
@@ -64,6 +68,7 @@ export default function Login() {
       }
     } catch (err) {
       console.error(err)
+      setIsLoggingIn(false)
       setPasswordError(true)
     }
   }
@@ -224,7 +229,9 @@ export default function Login() {
                 <a href="#" onClick={(e) => { e.preventDefault(); setShowResetModal(true)} } className="forgot-link"><u>Forgot your password?</u></a>
             )}
             
-            <button id="login" type="submit" className="login-btn">LOGIN</button>
+            <button id="login" type="submit" className="login-btn" disabled={isLoggingIn}>
+              {isLoggingIn ? 'LOGGING IN...' : 'LOGIN'}
+            </button>
         </form>
 
         <div className="separator">OR</div>

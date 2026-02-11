@@ -204,7 +204,7 @@
     /* ========================================
        LOGIN CONTAINER
        ======================================== */
-    .login-container {
+    .login-page .login-container {
       background: rgb(255, 255, 255);
       backdrop-filter: blur(10px);
       border-radius: 25px;

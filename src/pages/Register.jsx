@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth'
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
+import Toast from '../components/Toast'
 import '../styles/vendor/register-style.css'
 
 export default function Register() {
@@ -14,6 +15,8 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordError, setPasswordError] = useState(false)
   const [emailError, setEmailError] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: '', type: '' })
+  const [isRegistering, setIsRegistering] = useState(false)
 
   // Helper to generate unique identifier (matching legacy 8-digit format)
   const generateUniqueIdentifier = async (db) => {
@@ -42,10 +45,15 @@ export default function Register() {
     let newPasswordError = false
     let alertMsg = ""
 
-    // Email validation (simple regex)
-    // Checks for characters@characters.characters (at least one dot after @)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
+    // Email validation
+    // Stronger regex and check for specific typos like gmail.co
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    const lowerEmail = email.toLowerCase().trim()
+    const isTypo = lowerEmail.endsWith('@gmail.co') || 
+                   lowerEmail.endsWith('@yahoo.co') || 
+                   lowerEmail.endsWith('@hotmail.co')
+
+    if (!emailRegex.test(email) || isTypo) {
         newEmailError = true
         hasError = true
         alertMsg += "Please enter a valid email address.\n"
@@ -71,9 +79,11 @@ export default function Register() {
 
     // Check if any error occurred
     if (hasError) {
-        alert(alertMsg.trim())
+        setToast({ show: true, message: alertMsg.trim(), type: 'error' })
         return
     }
+
+    setIsRegistering(true)
 
     try {
       const app = initFirebase()
@@ -116,6 +126,7 @@ export default function Register() {
       window.location.href = '/login'
 
     } catch (error) {
+      setIsRegistering(false)
       console.error('Registration error:', error)
       let errorMessage = 'Registration failed: '
       switch (error.code) {
@@ -145,7 +156,14 @@ export default function Register() {
 
   return (
     <div className="register-page register-body">
-      <div className="bg-shape1"></div>
+      <Toast 
+        message={toast.message}
+        show={toast.show}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+        style={{ top: '20px', right: '20px' }}
+      />
+      <div className="bg-shape1"></div> 
       <div className="bg-shape2"></div>
 
       <div className="logo-corner">
@@ -265,7 +283,9 @@ export default function Register() {
             </span>
           </div>
 
-          <button id="submit" type="submit" className="signup-btn">SIGN UP</button>
+          <button id="submit" type="submit" className="signup-btn" disabled={isRegistering}>
+            {isRegistering ? 'SIGNING UP...' : 'SIGN UP'}
+          </button>
         </form>
 
         <p className="signin-text"> Already have an account? <a href="/login" className="signin-link"> <u>Sign In</u></a></p>
