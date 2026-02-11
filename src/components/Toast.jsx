@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-const Toast = ({ message, show, type = 'success', onClose, duration = 3000, style = {} }) => {
+const Toast = ({ message, show, type = 'success', onClose, duration = 3000, style = {}, position = 'top-right' }) => {
   useEffect(() => {
     if (show) {
       const timer = setTimeout(() => {
@@ -20,12 +20,24 @@ const Toast = ({ message, show, type = 'success', onClose, duration = 3000, styl
   const border = isError ? '1px solid #b91c1c' : '1px solid #047857';
   const color = isError ? '#991b1b' : '#065f46';
 
+  const positionStyle = (() => {
+    switch (position) {
+      case 'top-left':
+        return { top: '80px', left: '20px' }
+      case 'bottom-right':
+        return { bottom: '20px', right: '20px' }
+      case 'bottom-left':
+        return { bottom: '20px', left: '20px' }
+      case 'top-right':
+      default:
+        return { top: '80px', right: '20px' }
+    }
+  })()
+
   return (
     <div
       style={{
         position: 'fixed',
-        top: '80px', // Below 64px header
-        right: '20px',
         backgroundColor: bg,
         color: color,
         border: border,
@@ -39,6 +51,7 @@ const Toast = ({ message, show, type = 'success', onClose, duration = 3000, styl
         minWidth: '250px',
         animation: 'slideIn 0.3s ease-out',
         fontWeight: '500',
+        ...positionStyle,
         ...style
       }}
     >

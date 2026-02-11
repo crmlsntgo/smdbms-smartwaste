@@ -754,12 +754,13 @@ export default function Customize() {
         </main>
       </div>
 
-      <Toast 
-        message={toast.message} 
-        show={toast.show} 
-        type={toast.type}
-        onClose={() => setToast({ ...toast, show: false })} 
-      />
+            <Toast 
+                message={toast.message} 
+                show={toast.show} 
+                type={toast.type}
+                onClose={() => setToast({ ...toast, show: false })} 
+                position="bottom-right"
+            />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { getFirestore, doc, getDoc, updateDoc, setDoc, deleteDoc, serverTimestam
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import Toast from '../components/Toast'
 import '../styles/vendor/dashboard-style.css'
 
 // Header CSS is loaded by `Header.jsx`; load settings CSS dynamically so
@@ -171,16 +172,16 @@ export default function Settings() {
   const handleChangePassword = async () => {
       const { old, new: newPass, confirm } = passForm
       if (!old || !newPass || !confirm) {
-          alert("Please fill all password fields")
-          return
+        setNotification({ type: 'error', message: 'Please fill all password fields.' })
+        return
       }
       if (newPass.length < 8) {
-          alert("New password must be at least 8 characters")
-          return
+        setNotification({ type: 'error', message: 'New password must be at least 8 characters.' })
+        return
       }
       if (newPass !== confirm) {
-           alert("New passwords do not match")
-           return
+         setNotification({ type: 'error', message: 'New passwords do not match.' })
+         return
       }
 
       setSaving(true)
@@ -209,13 +210,13 @@ export default function Settings() {
           setShowPasswordModal(false)
           setPassForm({ old: '', new: '', confirm: '' })
 
-      } catch (error) {
+        } catch (error) {
           console.error("Password change failed:", error)
           let msg = "Failed to change password."
           if (error.code === 'auth/wrong-password') msg = "Incorrect old password."
           if (error.code === 'auth/weak-password') msg = "Password is too weak."
-          alert(msg)
-      } finally {
+          setNotification({ type: 'error', message: msg })
+        } finally {
           setSaving(false)
       }
   }
@@ -302,23 +303,14 @@ export default function Settings() {
               <h2>Settings</h2>
             </div>
             
-            {notification && (
-                <div style={{
-                    position: 'fixed',
-                    top: '80px',
-                    right: '20px',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    background: notification.type === 'success' ? '#d1fae5' : (notification.type === 'error' ? '#fee2e2' : '#e0f2fe'),
-                    color: notification.type === 'success' ? '#065f46' : (notification.type === 'error' ? '#991b1b' : '#075985'),
-                    border: `1px solid ${notification.type === 'success' ? '#34d399' : (notification.type === 'error' ? '#f87171' : '#38bdf8')}`,
-                    zIndex: 1000,
-                    fontWeight: 500,
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }}>
-                    {notification.message}
-                </div>
-            )}
+            <Toast
+              message={notification?.message}
+              show={!!notification}
+              type={notification?.type}
+              onClose={() => setNotification(null)}
+              duration={3000}
+              position="top-right"
+            />
 
             <div className="settings-layout">
               <aside className="sb-settings-aside">
