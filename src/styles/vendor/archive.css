@@ -211,6 +211,11 @@
   cursor: pointer;
 }
 
+.bin-name {
+  font-weight: 600;
+  color: #101828;
+}
+
 .bin-id {
   font-weight: 600;
   color: #027a5e;

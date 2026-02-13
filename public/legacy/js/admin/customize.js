@@ -398,3 +398,345 @@ async function addNewBin() {
     threshold: 80,
     location: 'Unassigned',
     imageUrl: 'https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?w=400',
+    sensorStatus: 'Connected',
+    lastConfigured: 'Just now',
+    status: 'Available',
+    dateCreated: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    statusDot: 'green'
+  };
+
+  if (db) {
+    if (!auth || !auth.currentUser) {
+      showNotification('You must be signed in to add a new bin', 'error');
+      return;
+    }
+    try {
+      const created = await reserveSerialAndCreateBin(newBin);
+      if (created) {
+        newBin.docId = created.docId;
+        newBin.serial = created.serial;
+      } else {
+        // Fallback: create without serial reservation
+        const createdBy = auth.currentUser.uid;
+        await setDoc(doc(db, 'bins', serial), {
+          ...newBin,
+          serial,
+          status: 'Available',
+          createdAt: serverTimestamp(),
+          createdBy
+        });
+        newBin.docId = serial;
+      }
+    } catch (e) {
+      console.error('admin/customize.js: Error during transactional create:', e);
+      newBin.serial = `SDB-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+  }
+
+  newBin.createdAtMs = Date.now();
+  bins.unshift(newBin);
+  sortBins();
+  reindexBins();
+  currentBinId = newBin.id;
+  renderBinList();
+  selectBin(currentBinId);
+  showNotification('New bin created successfully');
+}
+
+// Transactional serial reservation and bin creation
+async function reserveSerialAndCreateBin(binData, attempts = 10) {
+  for (let i = 0; i < attempts; i++) {
+    const serial = `SDB-${Math.floor(1000 + Math.random() * 9000)}`;
+    try {
+      const result = await runTransaction(db, async (tx) => {
+        const serialRef = doc(db, 'serials', serial);
+        const serialSnap = await tx.get(serialRef);
+        if (serialSnap.exists()) throw new Error('serial_exists');
+
+        const binRef = doc(db, 'bins', serial);
+        const createdBy = auth && auth.currentUser ? auth.currentUser.uid : null;
+
+        const data = {
+          ...binData,
+          serial,
+          status: 'Available',
+          createdAt: serverTimestamp(),
+          createdBy
+        };
+
+        tx.set(binRef, data);
+        tx.set(serialRef, {
+          binId: serial,
+          reservedAt: serverTimestamp(),
+          archived: false,
+          createdBy
+        });
+
+        return { docId: serial, serial };
+      });
+      return result;
+    } catch (err) {
+      if (err.message === 'serial_exists') continue;
+      console.warn('Serial reservation transaction error:', err);
+    }
+  }
+  return null;
+}
+
+function removeBin() { showRemoveModal(); }
+
+function showRemoveModal() {
+  if (removeReasonSelect) removeReasonSelect.value = '';
+  if (removeModalOverlay) removeModalOverlay.classList.add('active');
+  updateConfirmButtonState();
+}
+
+function closeRemoveModal() {
+  if (removeModalOverlay) removeModalOverlay.classList.remove('active');
+  if (removeReasonSelect) removeReasonSelect.value = '';
+}
+
+function updateConfirmButtonState() {
+  if (modalConfirmBtn) modalConfirmBtn.disabled = !(removeReasonSelect && removeReasonSelect.value !== '');
+}
+
+async function confirmRemoveBin() {
+  const reason = removeReasonSelect ? removeReasonSelect.value : '';
+  if (!reason) return;
+  const currentBin = bins.find(b => b.id === currentBinId);
+  if (!currentBin) {
+    closeRemoveModal();
+    return;
+  }
+
+  const binDocId = currentBin.docId || currentBin.serial;
+  if (!binDocId) {
+    showNotification('Cannot archive bin: invalid bin identifier', 'error');
+    closeRemoveModal();
+    return;
+  }
+
+  let persisted = false;
+  if (db && binDocId) {
+    const now = new Date();
+    try {
+      // Get user info for Archived By field
+      let archivedByName = auth.currentUser.email || auth.currentUser.uid;
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          archivedByName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || auth.currentUser.email || auth.currentUser.uid;
+        }
+      } catch (e) {
+        console.warn('Could not fetch user details:', e);
+      }
+
+      // Move bin to archive collection transactionally
+      await runTransaction(db, async (tx) => {
+        const binRef = doc(db, 'bins', binDocId);
+        const archiveRef = doc(db, 'archive', binDocId);
+        const serialRef = doc(db, 'serials', binDocId || '');
+
+        // All reads before writes
+        const binSnap = await tx.get(binRef);
+        if (!binSnap.exists()) throw new Error('Bin not found');
+
+        const binData = binSnap.data();
+        const sSnap = await tx.get(serialRef);
+
+        // Write: archive the bin
+        tx.set(archiveRef, {
+          ...binData,
+          status: 'archived',
+          archivedAt: serverTimestamp(),
+          archiveDate: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          archiveReason: reason,
+          reason: reason,
+          lastActive: currentBin.lastConfigured || now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          archivedBy: auth.currentUser.uid,
+          archivedByName: archivedByName
+        });
+
+        // Delete from bins collection
+        tx.delete(binRef);
+
+        // Update serial if exists
+        if (sSnap.exists()) tx.update(serialRef, { archived: true, archivedAt: serverTimestamp(), archiveReason: reason });
+      });
+      persisted = true;
+    } catch (e) {
+      console.warn('Transaction failed, trying fallback:', e);
+      // Fallback: non-transactional
+      try {
+        let archivedByName = auth.currentUser.email || auth.currentUser.uid;
+        const binRef = doc(db, 'bins', binDocId);
+        const archiveRef = doc(db, 'archive', binDocId);
+
+        const binSnap = await getDoc(binRef);
+        if (!binSnap.exists()) throw new Error('Bin not found');
+
+        const binData = binSnap.data();
+
+        await setDoc(archiveRef, {
+          ...binData,
+          status: 'archived',
+          archivedAt: serverTimestamp(),
+          archiveDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          archiveReason: reason,
+          reason: reason,
+          lastActive: currentBin.lastConfigured || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+          archivedBy: auth.currentUser.uid,
+          archivedByName: archivedByName
+        });
+
+        await deleteDoc(binRef);
+        persisted = true;
+      } catch (e2) {
+        console.error('Fallback archive failed:', e2);
+      }
+    }
+  }
+
+  if (!persisted) {
+    showNotification(`Failed to archive "${currentBin.name}". Check console for details.`, 'error');
+    closeRemoveModal();
+    return;
+  }
+
+  bins = bins.filter(b => b.id !== currentBinId);
+  sortBins();
+  reindexBins();
+  currentBinId = bins[0]?.id || 1;
+  renderBinList();
+  selectBin(currentBinId);
+  showNotification(`Bin "${currentBin.name}" moved to archive`);
+  closeRemoveModal();
+}
+
+async function saveBin() {
+  const bin = bins.find(b => b.id === currentBinId);
+  if (!bin) return showNotification('No bin selected', 'error');
+
+  const capacity = parseInt(bin.capacity, 10);
+  const threshold = parseInt(bin.threshold, 10);
+
+  if (isNaN(capacity) || capacity < 1) {
+    showNotification('Capacity must be a valid positive integer', 'error');
+    return;
+  }
+
+  if (isNaN(threshold) || threshold < 1 || threshold > 100) {
+    showNotification('Threshold must be an integer between 1 and 100', 'error');
+    return;
+  }
+
+  if (db) {
+    if (!auth || !auth.currentUser) {
+      showNotification('You must be signed in to save changes', 'error');
+      return;
+    }
+    try {
+      if (bin.docId) {
+        const now = new Date();
+        const lastConfigured = now.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' });
+        const infoStatusEl = document.getElementById('info-status');
+        const status = infoStatusEl ? infoStatusEl.textContent.trim() : (bin.status || null);
+        const dateCreated = bin.dateCreated || now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        await updateDoc(doc(db, 'bins', bin.docId), {
+          name: bin.name,
+          capacity: Number(bin.capacity) || 0,
+          threshold: Number(bin.threshold) || 0,
+          location: bin.location,
+          imageUrl: bin.imageUrl,
+          lastConfigured: lastConfigured,
+          status: status,
+          dateCreated: dateCreated,
+          updatedAt: serverTimestamp(),
+        });
+        bin.lastConfigured = lastConfigured;
+        bin.status = status;
+        bin.dateCreated = dateCreated;
+        const infoLastEl = document.getElementById('info-last-configured');
+        const infoDateEl = document.getElementById('info-date-created');
+        if (infoLastEl) infoLastEl.textContent = lastConfigured;
+        if (infoDateEl) infoDateEl.textContent = dateCreated;
+      } else {
+        const createdBy = auth.currentUser.uid;
+        const now = new Date();
+        const dateCreated = bin.dateCreated || now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        const lastConfigured = bin.lastConfigured || now.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' });
+        const infoStatusEl = document.getElementById('info-status');
+        const status = infoStatusEl ? infoStatusEl.textContent.trim() : (bin.status || null);
+
+        const docRef = await addDoc(collection(db, 'bins'), { ...bin, createdAt: serverTimestamp(), createdBy, lastConfigured, status, dateCreated });
+        bin.docId = docRef.id;
+        bin.createdAtMs = Date.now();
+        bin.lastConfigured = lastConfigured;
+        bin.status = status;
+        bin.dateCreated = dateCreated;
+        const infoLastEl = document.getElementById('info-last-configured');
+        const infoDateEl = document.getElementById('info-date-created');
+        if (infoLastEl) infoLastEl.textContent = lastConfigured;
+        if (infoDateEl) infoDateEl.textContent = dateCreated;
+      }
+      showNotification('Changes saved successfully');
+    } catch (e) {
+      console.error('admin/customize.js: Failed to save bin:', e);
+      showNotification(`Failed to save changes: ${e.message || e}`, 'error');
+    }
+  } else {
+    showNotification('Changes saved locally (Firestore not available)');
+  }
+}
+
+function attachEventListeners() {
+  if (binSearchInput) binSearchInput.addEventListener('input', (e) => renderBinList(e.target.value));
+  [binNameInput, binCapacityInput, binThresholdInput, binLocationInput, binImageUrlInput].forEach(i => {
+    if (i) i.addEventListener('input', updateCurrentBinData);
+  });
+  if (infoToggle) infoToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isVisible = infoDetails.style.display !== 'none';
+    infoDetails.style.display = isVisible ? 'none' : 'block';
+    infoToggle.innerHTML = isVisible ? '<i class="fas fa-chevron-down"></i> Additional information' : '<i class="fas fa-chevron-up"></i> Additional information';
+  });
+  if (addNewBinBtn) addNewBinBtn.addEventListener('click', addNewBin);
+  if (removeBtn) removeBtn.addEventListener('click', removeBin);
+  if (saveBtn) saveBtn.addEventListener('click', saveBin);
+  if (removeReasonSelect) removeReasonSelect.addEventListener('change', updateConfirmButtonState);
+  if (modalConfirmBtn) modalConfirmBtn.addEventListener('click', confirmRemoveBin);
+  if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeRemoveModal);
+  if (removeModalOverlay) removeModalOverlay.addEventListener('click', (e) => { if (e.target === removeModalOverlay) closeRemoveModal(); });
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showNotification(message, type = 'success') {
+  const notification = document.createElement('div');
+  notification.className = `notification notification--${type}`;
+  notification.innerHTML = `
+    <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+    <span>${message}</span>
+  `;
+  document.body.appendChild(notification);
+  notification.style.cssText = `position: fixed; bottom: 20px; right: 20px; background: ${type === 'error' ? '#ef4444' : '#10b981'}; color: white; padding: 12px 16px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; z-index: 1000; animation: slideIn 0.3s ease;`;
+  setTimeout(() => { notification.style.animation = 'slideOut 0.3s ease'; setTimeout(() => notification.remove(), 300); }, 3000);
+}
+
+const style = document.createElement('style');
+style.textContent = `@keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }`;
+document.head.appendChild(style);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (authUnsubscribe) authUnsubscribe();
+});
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

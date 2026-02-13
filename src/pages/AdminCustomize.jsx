@@ -573,7 +573,7 @@ export default function AdminCustomize() {
                         <h3 className="config-title">Live Preview</h3>
                     </div>
                     <div className="preview-card">
-                        <div className="preview-name">{formData.binName || 'No bin selected'}</div>
+                        <div className="preview-name bin-name">{formData.binName || 'Bin Name'}</div>
                         <div className="preview-location">
                             <i className="fas fa-map-marker-alt"></i>
                             <span>{formData.location}</span>

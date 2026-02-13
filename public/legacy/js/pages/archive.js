@@ -399,4 +399,268 @@ function applyFilters() {
   } else {
     filteredBins = statusFilteredBins;
   }
-  
+
+  currentPage = 1;
+  renderTable();
+}
+
+// Handle search
+function handleSearch(e) {
+  applyFilters();
+}
+
+// Restore single bin — moves from archive back to bins collection
+window.restoreBin = async function(binId) {
+  try {
+    const bin = allBins.find(b => b.id === binId);
+    if (!bin) {
+      alert('Bin not found');
+      return;
+    }
+
+    const binName = bin.name || bin.binName || binId;
+
+    if (!confirm(`Restore "${binName}"?`)) {
+      return;
+    }
+
+    // Move from archive collection back to bins collection
+    const archiveRef = doc(db, "archive", binId);
+    const binsRef = doc(db, "bins", binId);
+
+    const archiveSnap = await getDoc(archiveRef);
+    if (!archiveSnap.exists()) {
+      alert('Bin not found in archive');
+      return;
+    }
+
+    const binData = archiveSnap.data();
+
+    // Create clean data object excluding archive fields
+    const cleanedData = { ...binData };
+    delete cleanedData.archivedAt;
+    delete cleanedData.archiveDate;
+    delete cleanedData.archiveReason;
+    delete cleanedData.archivedBy;
+    delete cleanedData.archivedByName;
+    delete cleanedData.reason;
+    delete cleanedData.status;
+
+    // Restore to bins collection with cleaned data
+    await setDoc(binsRef, {
+      ...cleanedData,
+      status: "Available",
+      restoredAt: Timestamp.now(),
+      restoredBy: auth.currentUser.uid
+    });
+
+    // Remove from archive collection
+    await deleteDoc(archiveRef);
+
+    alert(`"${binName}" has been restored successfully!`);
+    await loadArchivedBins();
+  } catch (error) {
+    console.error("Error restoring bin:", error);
+    alert("Failed to restore bin. Please try again.");
+  }
+};
+
+// Restore selected bins with validation
+async function restoreSelected() {
+  const selected = document.querySelectorAll(".bin-checkbox:checked");
+
+  if (selected.length === 0) {
+    alert("Please select at least one bin to restore.");
+    return;
+  }
+
+  const selectedBins = [];
+  const alreadyRestored = [];
+  const deletedBins = [];
+
+  for (const checkbox of selected) {
+    const binId = checkbox.getAttribute("data-bin-id");
+    const bin = allBins.find(b => b.id === binId);
+
+    if (bin) {
+      const status = (bin.status || '').toLowerCase();
+
+      if (status === 'restored') {
+        alreadyRestored.push(bin.name || bin.binName || binId);
+      } else if (status === 'deleted') {
+        deletedBins.push(bin.name || bin.binName || binId);
+      } else {
+        selectedBins.push(binId);
+      }
+    }
+  }
+
+  if (alreadyRestored.length > 0) {
+    alert(`The following bin(s) are already restored:\n\n${alreadyRestored.join('\n')}`);
+    return;
+  }
+
+  if (deletedBins.length > 0) {
+    alert(`The following bin(s) have been deleted and cannot be restored:\n\n${deletedBins.join('\n')}`);
+    return;
+  }
+
+  if (selectedBins.length === 0) {
+    alert("No valid bins selected for restoration.");
+    return;
+  }
+
+  if (!confirm(`Restore ${selectedBins.length} bin(s)?`)) {
+    return;
+  }
+
+  try {
+    const promises = selectedBins.map(async (binId) => {
+      const archiveRef = doc(db, "archive", binId);
+      const binsRef = doc(db, "bins", binId);
+
+      const archiveSnap = await getDoc(archiveRef);
+      if (!archiveSnap.exists()) return;
+
+      const binData = archiveSnap.data();
+
+      const cleanedData = { ...binData };
+      delete cleanedData.archivedAt;
+      delete cleanedData.archiveDate;
+      delete cleanedData.archiveReason;
+      delete cleanedData.archivedBy;
+      delete cleanedData.archivedByName;
+      delete cleanedData.reason;
+      delete cleanedData.status;
+
+      await setDoc(binsRef, {
+        ...cleanedData,
+        status: "Available",
+        restoredAt: Timestamp.now(),
+        restoredBy: auth.currentUser.uid
+      });
+
+      await deleteDoc(archiveRef);
+    });
+
+    await Promise.all(promises);
+    alert(`${selectedBins.length} bin(s) restored successfully!`);
+    await loadArchivedBins();
+  } catch (error) {
+    console.error("Error restoring bins:", error);
+    alert("Failed to restore some bins. Please try again.");
+  }
+}
+
+// Show delete modal (admin only)
+window.showDeleteModal = function(binId) {
+  if (userRole !== 'admin') {
+    alert('Only admins can delete bins.');
+    return;
+  }
+
+  binToDelete = binId;
+  const bin = allBins.find(b => b.id === binId);
+  const binName = bin ? (bin.name || bin.binName || binId) : binId;
+
+  const modal = document.getElementById("deleteModal");
+  const nameElement = document.getElementById("deleteBinName");
+
+  if (nameElement) nameElement.textContent = binName;
+  if (modal) modal.classList.add('active');
+};
+
+// Hide delete modal
+function hideDeleteModal() {
+  const modal = document.getElementById("deleteModal");
+  if (modal) modal.classList.remove('active');
+  binToDelete = null;
+}
+
+// Execute delete — soft-delete (archive → deleted) with auto-delete timer
+async function executeDelete() {
+  if (!binToDelete || userRole !== 'admin') return;
+
+  try {
+    const confirmBtn = document.getElementById("confirmDeleteBtn");
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    // Get user info for Modified By
+    let modifiedBy = auth.currentUser.email || auth.currentUser.uid;
+    try {
+      const userDocSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        modifiedBy = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || auth.currentUser.email || auth.currentUser.uid;
+      }
+    } catch (e) {
+      console.warn('Could not fetch user details:', e);
+    }
+
+    const archiveRef = doc(db, "archive", binToDelete);
+    const deletedRef = doc(db, "deleted", binToDelete);
+
+    const archiveSnap = await getDoc(archiveRef);
+    if (!archiveSnap.exists()) {
+      throw new Error('Bin not found in archive');
+    }
+
+    const binData = archiveSnap.data();
+
+    // Move to deleted collection with deletion metadata and auto-delete timer (30 days)
+    await setDoc(deletedRef, {
+      ...binData,
+      status: 'deleted',
+      deletedAt: Timestamp.now(),
+      deletedBy: auth.currentUser.uid,
+      modifiedBy: modifiedBy,
+      modifiedAt: Timestamp.now(),
+      autoDeleteAfter: Timestamp.fromMillis(Date.now() + (30 * 24 * 60 * 60 * 1000))
+    });
+
+    // Remove from archive collection
+    await deleteDoc(archiveRef);
+
+    await loadArchivedBins();
+    hideDeleteModal();
+    alert("Bin moved to deleted. It will be permanently removed after 30 days.");
+  } catch (error) {
+    console.error("Error deleting bin:", error);
+    alert("Failed to delete bin. Please try again.");
+  } finally {
+    const confirmBtn = document.getElementById("confirmDeleteBtn");
+    if (confirmBtn) confirmBtn.disabled = false;
+    binToDelete = null;
+  }
+}
+
+// Show empty state
+function showEmptyState(message = "No archived bins found") {
+  const tbody = document.getElementById("archive-table-body");
+  const emptyState = document.getElementById("emptyState");
+  const pagination = document.getElementById("pagination");
+
+  if (tbody) tbody.innerHTML = "";
+  if (emptyState) {
+    emptyState.style.display = "flex";
+    const p = emptyState.querySelector("p");
+    if (p) p.textContent = message;
+  }
+  if (pagination) pagination.style.display = "none";
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (authUnsubscribe) authUnsubscribe();
+});
+
+// Initialize on load
+initArchivePage();

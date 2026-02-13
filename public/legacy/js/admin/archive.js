@@ -402,105 +402,261 @@ function applyFilters() {
   renderTable();
 }
 
-// Restore a single bin
+// Restore a single bin — moves from archive back to bins collection
 window.restoreBin = async function(binId) {
   try {
-    // If bin exists in deleted -> move back to main collection or archive as appropriate
-    const deletedRef = doc(db, "deleted", binId);
-    const deletedSnap = await getDoc(deletedRef);
-    
-    if (!deletedSnap.exists()) {
-      alert('Bin not found or already restored.');
+    const bin = allBins.find(b => b.id === binId);
+    if (!bin) {
+      alert('Bin not found');
       return;
     }
 
-    const binData = deletedSnap.data();
-    // move to restored collection or main bins collection. For safety, we add restored flag into archive
+    const binName = bin.name || bin.binName || binId;
+
+    if (!confirm(`Restore "${binName}"?`)) {
+      return;
+    }
+
+    // Move from archive collection back to bins collection
     const archiveRef = doc(db, "archive", binId);
-    await setDoc(archiveRef, {
-      ...binData,
-      status: 'restored',
+    const binsRef = doc(db, "bins", binId);
+
+    // Get archived bin data
+    const archiveSnap = await getDoc(archiveRef);
+    if (!archiveSnap.exists()) {
+      alert('Bin not found in archive');
+      return;
+    }
+
+    const binData = archiveSnap.data();
+
+    // Create clean data object excluding archive fields
+    const cleanedData = { ...binData };
+    delete cleanedData.archivedAt;
+    delete cleanedData.archiveDate;
+    delete cleanedData.archiveReason;
+    delete cleanedData.archivedBy;
+    delete cleanedData.archivedByName;
+    delete cleanedData.reason;
+    delete cleanedData.status;
+
+    // Restore to bins collection with cleaned data
+    await setDoc(binsRef, {
+      ...cleanedData,
+      status: "Available",
       restoredAt: Timestamp.now(),
-      restoredBy: auth.currentUser ? auth.currentUser.uid : null,
+      restoredBy: auth.currentUser.uid
     });
 
-    // delete from deleted
-    await deleteDoc(deletedRef);
+    // Remove from archive collection completely
+    await deleteDoc(archiveRef);
+
+    alert(`"${binName}" has been restored successfully!`);
     await loadArchivedBins();
-    alert('Bin restored successfully.');
   } catch (error) {
     console.error('Error restoring bin:', error);
-    alert('Failed to restore bin.');
+    alert('Failed to restore bin. Please try again.');
   }
 }
 
-// Confirm delete action
+// Confirm delete — shows modal with bin info
+let binToDelete = null;
+let binToDeleteStatus = null;
+
 window.confirmDelete = function(binId, binName, status) {
-  const modal = document.getElementById('deleteModal');
-  const deleteBinName = document.getElementById('deleteBinName');
-  const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+  binToDelete = binId;
+  binToDeleteStatus = status || 'archived';
+  const modal = document.getElementById("deleteModal");
+  const nameElement = document.getElementById("deleteBinName");
 
-  if (deleteBinName) deleteBinName.textContent = `${binName}`;
-  if (modal) modal.style.display = 'flex';
-
-  confirmDeleteBtn.onclick = function() {
-    executeDelete(binId, status);
+  if (nameElement) {
+    nameElement.textContent = binName;
   }
-}
+
+  // Update modal message based on status
+  const modalText = document.querySelector('#deleteModal .modal-text');
+  if (modalText && binToDeleteStatus === 'deleted') {
+    modalText.textContent = `Are you sure you want to permanently delete "${binName}"? This action cannot be undone.`;
+  }
+
+  if (modal) {
+    modal.classList.add('active');
+  }
+};
 
 // Hide delete modal
 function hideDeleteModal() {
-  const modal = document.getElementById('deleteModal');
-  if (modal) modal.style.display = 'none';
+  const modal = document.getElementById("deleteModal");
+  if (modal) {
+    modal.classList.remove('active');
+  }
+  binToDelete = null;
+  binToDeleteStatus = null;
 }
 
-// Execute delete (permanent)
-async function executeDelete(binId) {
+// Execute delete — soft-delete (archive → deleted) or permanent delete
+async function executeDelete() {
+  if (!binToDelete) return;
+
   try {
-    // remove from deleted or archive collection permanently
-    const deletedRef = doc(db, "deleted", binId);
-    const archiveRef = doc(db, "archive", binId);
-    
-    const deletedSnap = await getDoc(deletedRef);
-    const archiveSnap = await getDoc(archiveRef);
+    const confirmBtn = document.getElementById("confirmDeleteBtn");
+    if (confirmBtn) confirmBtn.disabled = true;
 
-    if (deletedSnap.exists()) {
+    // Get user info for Modified By column
+    let modifiedBy = auth.currentUser.email || auth.currentUser.uid;
+    try {
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        modifiedBy = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || auth.currentUser.email || auth.currentUser.uid;
+      }
+    } catch (e) {
+      console.warn('Could not fetch user details:', e);
+    }
+
+    if (binToDeleteStatus === 'deleted') {
+      // Permanently delete from both archive and deleted collections
+      const archiveRef = doc(db, "archive", binToDelete);
+      const deletedRef = doc(db, "deleted", binToDelete);
+
       await deleteDoc(deletedRef);
-    }
 
-    if (archiveSnap.exists()) {
+      const archiveSnap = await getDoc(archiveRef);
+      if (archiveSnap.exists()) {
+        await deleteDoc(archiveRef);
+      }
+
+      await loadArchivedBins();
+      hideDeleteModal();
+      alert("Bin permanently deleted from the system.");
+    } else {
+      // Soft delete: move from archive to deleted collection with auto-delete timer
+      const archiveRef = doc(db, "archive", binToDelete);
+      const deletedRef = doc(db, "deleted", binToDelete);
+
+      const archiveSnap = await getDoc(archiveRef);
+      if (!archiveSnap.exists()) {
+        throw new Error('Bin not found in archive');
+      }
+
+      const binData = archiveSnap.data();
+
+      // Move to deleted collection with deletion metadata and auto-delete timer (30 days)
+      await setDoc(deletedRef, {
+        ...binData,
+        status: 'deleted',
+        deletedAt: Timestamp.now(),
+        deletedBy: auth.currentUser.uid,
+        modifiedBy: modifiedBy,
+        modifiedAt: Timestamp.now(),
+        autoDeleteAfter: Timestamp.fromMillis(Date.now() + (30 * 24 * 60 * 60 * 1000))
+      });
+
+      // Remove from archive collection
       await deleteDoc(archiveRef);
-    }
 
-    await loadArchivedBins();
-    hideDeleteModal();
-    alert('Bin permanently deleted.');
+      await loadArchivedBins();
+      hideDeleteModal();
+      alert("Bin moved to deleted collection. It will be permanently removed after 30 days.");
+    }
   } catch (error) {
-    console.error('Error deleting bin:', error);
-    alert('Failed to delete bin.');
+    console.error("Error deleting bin:", error);
+    alert("Failed to delete bin. Please try again.");
+  } finally {
+    const confirmBtn = document.getElementById("confirmDeleteBtn");
+    if (confirmBtn) confirmBtn.disabled = false;
+    binToDelete = null;
   }
 }
 
-// Restore selected bins
+// Restore selected bins with validation
 async function restoreSelected() {
-  try {
-    const checkboxes = document.querySelectorAll('.bin-checkbox:checked');
-    if (!checkboxes || checkboxes.length === 0) {
-      alert('No bins selected');
-      return;
-    }
+  const selected = document.querySelectorAll(".bin-checkbox:checked");
 
-    const restorePromises = [];
-    checkboxes.forEach(cb => {
-      const id = cb.getAttribute('data-bin-id');
-      restorePromises.push(restoreBin(id));
+  if (selected.length === 0) {
+    alert("Please select at least one bin to restore.");
+    return;
+  }
+
+  // Validate bin statuses before confirming
+  const selectedBins = [];
+  const alreadyRestored = [];
+  const deletedBins = [];
+
+  for (const checkbox of selected) {
+    const binId = checkbox.getAttribute("data-bin-id");
+    const bin = allBins.find(b => b.id === binId);
+
+    if (bin) {
+      const status = (bin.status || '').toLowerCase();
+
+      if (status === 'restored') {
+        alreadyRestored.push(bin.name || bin.binName || binId);
+      } else if (status === 'deleted') {
+        deletedBins.push(bin.name || bin.binName || binId);
+      } else {
+        selectedBins.push(binId);
+      }
+    }
+  }
+
+  if (alreadyRestored.length > 0) {
+    alert(`The following bin(s) are already restored and cannot be restored again:\n\n${alreadyRestored.join('\n')}`);
+    return;
+  }
+
+  if (deletedBins.length > 0) {
+    alert(`The following bin(s) have been deleted and cannot be restored:\n\n${deletedBins.join('\n')}\n\nDeleted bins must be permanently removed or moved back to archive before restoration.`);
+    return;
+  }
+
+  if (selectedBins.length === 0) {
+    alert("No valid bins selected for restoration.");
+    return;
+  }
+
+  if (!confirm(`Restore ${selectedBins.length} bin(s)?`)) {
+    return;
+  }
+
+  try {
+    const promises = selectedBins.map(async (binId) => {
+      const archiveRef = doc(db, "archive", binId);
+      const binsRef = doc(db, "bins", binId);
+
+      const archiveSnap = await getDoc(archiveRef);
+      if (!archiveSnap.exists()) return;
+
+      const binData = archiveSnap.data();
+
+      // Create clean data object excluding archive fields
+      const cleanedData = { ...binData };
+      delete cleanedData.archivedAt;
+      delete cleanedData.archiveDate;
+      delete cleanedData.archiveReason;
+      delete cleanedData.archivedBy;
+      delete cleanedData.archivedByName;
+      delete cleanedData.reason;
+      delete cleanedData.status;
+
+      // Restore to bins collection
+      await setDoc(binsRef, {
+        ...cleanedData,
+        status: "Available",
+        restoredAt: Timestamp.now(),
+        restoredBy: auth.currentUser.uid
+      });
+
+      // Remove from archive collection completely
+      await deleteDoc(archiveRef);
     });
 
-    await Promise.all(restorePromises);
-    alert('Selected bins restored.');
+    await Promise.all(promises);
+    alert(`${selectedBins.length} bin(s) restored successfully!`);
+    await loadArchivedBins();
   } catch (error) {
-    console.error('Error restoring selected bins:', error);
-    alert('Failed to restore selected bins.');
+    console.error("Error restoring bins:", error);
+    alert("Failed to restore some bins. Please try again.");
   }
 }
 

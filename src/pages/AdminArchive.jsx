@@ -481,7 +481,7 @@ export default function AdminArchive() {
                 deletedBy: auth.currentUser?.email || 'Admin',
                 modifiedBy: userName,
                 originalId: binToDelete,
-                autoDeleteAfter: new Date(Date.now() + 60 * 1000) // 1 minute for testing
+                autoDeleteAfter: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day (for testing)
             })
 
             // Delete from Archive
@@ -682,7 +682,7 @@ export default function AdminArchive() {
                                                 </td>
                                                 <td><span className="bin-id">#{bin.binId}</span></td>
                                                 <td>
-                                                    <strong>{bin.binName}</strong>
+                                                    <strong className="bin-name">{bin.binName}</strong>
                                                     <div className="bin-location">{bin.location}</div>
                                                 </td>
                                                 <td>{formatDate(bin.archivedAt)}</td>
@@ -795,7 +795,7 @@ export default function AdminArchive() {
                      </div>
                      <h2 className="modal-title" style={{ fontWeight: 'bold' }}>Confirm Restore</h2>
                      <p className="modal-subtitle">
-                         Are you sure you want to restore <strong>{allBins.find(b => b.id === binToRestore)?.binName || 'this bin'}</strong>?<br/>
+                         Are you sure you want to restore <strong className="bin-name">{allBins.find(b => b.id === binToRestore)?.binName || 'this bin'}</strong>?<br/>
                          This bin will be moved back to the active dashboard.
                      </p>
                      <div className="modal-actions">

@@ -220,7 +220,7 @@ html.dark .sb-card p, html.dark .sb-card span, html.dark .sb-card label, html.da
 html.dark .waste-card p, html.dark .waste-card span, html.dark .waste-card label, html.dark .waste-card li,
 html.dark .system-card p, html.dark .system-card span, html.dark .system-card label, html.dark .system-card li,
 html.dark .legend-card p, html.dark .legend-card span,
-html.dark .archive-table td, html.dark .archive-table span,
+html.dark .archive-table td, html.dark,
 html.dark .profile-card p, html.dark .profile-card span, html.dark .profile-card div,
 html.dark .customize-bin-list span, html.dark .customize-bin-list p {
     color: #101828;
