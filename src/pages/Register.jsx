@@ -46,17 +46,24 @@ export default function Register() {
     let alertMsg = ""
 
     // Email validation
-    // Stronger regex and check for specific typos like gmail.co
+    // Restrict to common domains
+    const allowedDomains = [
+        'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 
+        'icloud.com', 'aol.com', 'protonmail.com', 'zoho.com', 
+        'yandex.com', 'mail.com', 'gmx.com', 'me.com', 'live.com', 'msn.com'
+    ];
+
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
     const lowerEmail = email.toLowerCase().trim()
-    const isTypo = lowerEmail.endsWith('@gmail.co') || 
-                   lowerEmail.endsWith('@yahoo.co') || 
-                   lowerEmail.endsWith('@hotmail.co')
+    const emailParts = lowerEmail.split('@')
+    const domain = emailParts.length === 2 ? emailParts[1] : ''
+    
+    const isCommonDomain = allowedDomains.includes(domain)
 
-    if (!emailRegex.test(email) || isTypo) {
+    if (!emailRegex.test(email) || !isCommonDomain) {
         newEmailError = true
         hasError = true
-        alertMsg += "Please enter a valid email address.\n"
+        alertMsg += "Please use a common verified email provider\n"
     }
 
     // Password length validation
@@ -225,7 +232,9 @@ export default function Register() {
               required
               style={{ flex: 1 }}
               value={firstName}
-              onChange={e => setFirstName(e.target.value)}
+              onChange={e => {
+                if (/^[a-zA-Z\s]*$/.test(e.target.value)) setFirstName(e.target.value)
+              }}
             />
             <input
               type="text"
@@ -234,7 +243,9 @@ export default function Register() {
               required
               style={{ flex: 1 }}
               value={lastName}
-              onChange={e => setLastName(e.target.value)}
+              onChange={e => {
+                if (/^[a-zA-Z\s]*$/.test(e.target.value)) setLastName(e.target.value)
+              }}
             />
           </div>
           <input

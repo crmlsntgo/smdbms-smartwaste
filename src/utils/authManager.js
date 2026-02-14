@@ -96,6 +96,6 @@ export async function performLogout() {
 
   try { localStorage.removeItem('sb_role') } catch (e) {}
 
-  // best-effort redirect to legacy login page
-  try { window.location.href = 'auth/login.html' } catch (e) {}
+  // Redirect to login page
+  try { window.location.href = '/login' } catch (e) {}
 }

@@ -93,8 +93,19 @@ export default function Settings() {
 
   const handleInputChange = (e) => {
     const { id, value } = e.target
-    if (id === 'settings-first-name') setFormData(prev => ({ ...prev, firstName: value }))
-    else if (id === 'settings-last-name') setFormData(prev => ({ ...prev, lastName: value }))
+    
+    if (id === 'settings-first-name') {
+        // Allow only letters and spaces
+        if (/^[a-zA-Z\s]*$/.test(value)) {
+            setFormData(prev => ({ ...prev, firstName: value }))
+        }
+    }
+    else if (id === 'settings-last-name') {
+        // Allow only letters and spaces
+        if (/^[a-zA-Z\s]*$/.test(value)) {
+            setFormData(prev => ({ ...prev, lastName: value }))
+        }
+    }
     else if (id === 'settings-phone') setFormData(prev => ({ ...prev, phone: value }))
     else if (id === 'settings-address') setFormData(prev => ({ ...prev, address: value }))
   }
@@ -117,6 +128,15 @@ export default function Settings() {
   const handleSave = async () => {
       setSaving(true)
       setNotification(null)
+
+      // Validate First and Last Name (Letters only)
+      const nameRegex = /^[a-zA-Z\s]+$/;
+      if (!nameRegex.test(formData.firstName) || !nameRegex.test(formData.lastName)) {
+          setNotification({ type: 'error', message: 'First and Last Name must contain only letters.' });
+          setSaving(false);
+          return;
+      }
+
       try {
           const app = initFirebase()
           const auth = getAuth(app)
