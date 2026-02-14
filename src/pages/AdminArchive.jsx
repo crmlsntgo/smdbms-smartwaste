@@ -26,7 +26,7 @@ import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/archive.css'
 import '../styles/vendor/modal.css'
-import { cleanupExpiredDeletedBins } from '../utils/cleanupExpiredDeletedBins'
+import { cleanupExpiredDeletedBins, cleanupExpiredRestoredBins } from '../utils/cleanupExpiredDeletedBins'
 
 export default function AdminArchive() {
     // --- State ---
@@ -91,8 +91,13 @@ export default function AdminArchive() {
     // Polling for expired deleted bins
     useEffect(() => {
         const interval = setInterval(async () => {
-             const result = await cleanupExpiredDeletedBins()
-             if (result && result.deleted > 0) {
+             // 1. Deleted Bins Cleanup
+             const resultDeleted = await cleanupExpiredDeletedBins()
+             
+             // 2. Restored Bins Cleanup
+             const resultRestored = await cleanupExpiredRestoredBins()
+
+             if ((resultDeleted && resultDeleted.deleted > 0) || (resultRestored && resultRestored.deleted > 0)) {
                  const app = initFirebase()
                  const db = getFirestore(app)
                  await loadAllData(db)
@@ -255,7 +260,7 @@ export default function AdminArchive() {
 
             // Update local state
             setAllBins(prev => prev.map(b => b.id === id ? { ...b, status: 'Restored', modifiedBy: userName } : b))
-            setToast({ show: true, message: "Bin restored successfully.", type: 'success' })
+            setToast({ show: true, message: "Bin restored successfully. 1 Day expired.", type: 'success' })
             setShowRestoreModal(false)
         } catch (error) {
             console.error("Restore failed", error)

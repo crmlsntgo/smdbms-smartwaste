@@ -80,8 +80,8 @@ service cloud.firestore {
       // Update: admins and utility staff can update archived bins (for restore operations)
       allow update: if isSignedIn() && (isAdmin() || isUtility());
 
-      // Delete: only admins can permanently delete from archive
-      allow delete: if isSignedIn() && isAdmin();
+      // Delete: admins can delete anything, utility staff can delete only 'Restored' (auto-cleanup)
+      allow delete: if isSignedIn() && (isAdmin() || (isUtility() && resource.data.status == 'Restored'));
     }
 
     // Deleted collection (for permanent deletion tracking)

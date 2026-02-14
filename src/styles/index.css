@@ -60,7 +60,7 @@ html.dark .profile-card__name {
     color: #000000 !important;
 }
 
-html.dark .config-title {
+html.dark .config-title, .haz-title {
     color: #ffffff !important;
 }
 
