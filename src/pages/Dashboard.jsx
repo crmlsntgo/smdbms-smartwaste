@@ -170,9 +170,29 @@ export default function Dashboard() {
 
         // Handle binDetail selection
         setBinDetail(prev => {
-          const targetId = prev ? prev.id : 'BIN001'
-          const found = loadedBins.find(b => b.id === targetId)
-          return found || loadedBins[0] || null
+          // 1. Try to load from localStorage first if no prev exists
+          if (!prev) {
+             const storedId = localStorage.getItem('ud_selected_bin');
+             if (storedId) {
+                const foundStored = loadedBins.find(b => b.id === storedId);
+                if (foundStored) return foundStored;
+             }
+          }
+
+          // 2. Keep current selection if valid
+          const targetId = prev ? prev.id : null 
+          let found = null
+          if (targetId) {
+              found = loadedBins.find(b => b.id === targetId)
+          }
+
+          // 3. Fallback to first bin if nothing selected or found
+          const result = found || loadedBins[0] || null
+          
+          if (result) {
+              localStorage.setItem('ud_selected_bin', result.id)
+          }
+          return result
         })
 
         // Process hazardous data from bins
@@ -194,6 +214,13 @@ export default function Dashboard() {
 
     return () => unsubscribe()
   }, [user, db])
+
+  // Save selection whenever binDetail changes
+  useEffect(() => {
+      if (binDetail && binDetail.id) {
+          localStorage.setItem('ud_selected_bin', binDetail.id);
+      }
+  }, [binDetail])
 
   // Sync wasteData and fillLevel with binDetail
   useEffect(() => {

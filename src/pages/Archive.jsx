@@ -27,6 +27,7 @@ import { notifyBinChange } from '../utils/syncManager'
 import '../styles/vendor/dashboard-style.css'
 import '../styles/vendor/header.css'
 import '../styles/vendor/archive.css'
+import { cleanupExpiredRestoredBins } from '../utils/cleanupExpiredDeletedBins'
 
 export default function Archive() {
     // --- State ---
@@ -78,6 +79,14 @@ export default function Archive() {
         const app = initFirebase()
         const auth = getAuth(app)
         const db = getFirestore(app)
+        
+        // Polling for expired restored bins
+        const interval = setInterval(async () => {
+             const result = await cleanupExpiredRestoredBins()
+             if (result && result.deleted > 0) {
+                 if (auth.currentUser) await loadArchivedBins(db, auth.currentUser)
+             }
+        }, 10000)
 
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -100,7 +109,10 @@ export default function Archive() {
             }
         })
 
-        return () => unsubscribe()
+        return () => {
+            clearInterval(interval)
+            unsubscribe()
+        }
     }, [])
 
     const loadArchivedBins = async (db, user) => {
@@ -271,7 +283,7 @@ export default function Archive() {
 
             // Optimistic update
             setAllBins(prev => prev.map(b => b.id === id ? { ...b, status: 'Restored' } : b))
-            setToast({ show: true, message: "Bin restored successfully.", type: 'success' })
+            setToast({ show: true, message: "Bin restored successfully. 1 Day expired.", type: 'success' })
             setShowRestoreModal(false)
         } catch (error) {
             console.error("Restore failed", error)

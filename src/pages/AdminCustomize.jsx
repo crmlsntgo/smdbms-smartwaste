@@ -323,11 +323,11 @@ export default function AdminCustomize() {
       if (reason === 'Other') reason = otherReason;
       
       if (!reason) return;
-      if (bins.length <= 1) {
-          alert('Cannot remove the last bin');
-          setShowRemoveModal(false);
-          return;
-      }
+      // if (bins.length <= 1) {
+      //    alert('Cannot remove the last bin');
+      //    setShowRemoveModal(false);
+      //    return;
+      // }
 
       if (!selectedBinId) return
       
