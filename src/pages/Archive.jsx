@@ -238,13 +238,28 @@ export default function Archive() {
                 if (!archiveSnap.exists()) throw new Error("Bin not found in archive")
                 const data = archiveSnap.data()
 
-                // Restore
-                tx.set(binRef, {
+                // Check if reason was Emptying
+                const isEmptying = (data.reason === 'Emptying' || data.reason === 'Emptied / Emptying' || data.archiveReason === 'Emptying' || data.archiveReason === 'Emptied / Emptying');
+
+                // Prepare restore data
+                const restoreData = {
                     ...data,
-                    status: 'active',
+                    status: 'Active',
                     restoredAt: serverTimestamp(),
                     lastConfigured: serverTimestamp()
-                })
+                };
+
+                // If Emptying, reset values and update lastEmptiedAt
+                if (isEmptying) {
+                    restoreData.fill_level = 0;
+                    restoreData.general_waste = 0;
+                    restoreData.waste_composition = { recyclable: 0, biodegradable: 0, non_biodegradable: 0 };
+                    restoreData.lastEmptiedAt = serverTimestamp();
+                    restoreData.emptiedBy = userName; // The person restoring confirms it is emptied
+                }
+
+                // Restore
+                tx.set(binRef, restoreData)
 
                 // Update Archive
                 tx.update(archiveRef, {
@@ -305,12 +320,23 @@ export default function Archive() {
                         ...rest 
                     } = bin
 
+                    // Check if Emptying
+                    const isEmptying = (bin.reason === 'Emptying' || bin.reason === 'Emptied / Emptying' || bin.archiveReason === 'Emptying' || bin.archiveReason === 'Emptied / Emptying');
+
                     // Restore to bins (active)
                     const restoreData = {
                         ...rest,
-                        status: 'active',
+                        status: 'Active',
                         restoredAt: serverTimestamp(),
                         lastConfigured: serverTimestamp()
+                    }
+
+                    if (isEmptying) {
+                        restoreData.fill_level = 0;
+                        restoreData.general_waste = 0;
+                        restoreData.waste_composition = { recyclable: 0, biodegradable: 0, non_biodegradable: 0 };
+                        restoreData.lastEmptiedAt = serverTimestamp();
+                        restoreData.emptiedBy = userName;
                     }
 
                     batch.set(binRef, restoreData)

@@ -265,14 +265,15 @@ export default function AdminCustomize() {
             createdBy: creatorName
         }
 
-        const docRef = await addDoc(collection(db, 'bins'), newBinData)
+        // Use SetDoc with specific ID (nextSerial) instead of addDoc (random ID)
+        await setDoc(doc(db, 'bins', nextSerial), newBinData)
         
-        const newBin = { id: docRef.id, ...newBinData, createdAt: new Date() } // approximate date for UI
+        const newBin = { id: nextSerial, ...newBinData, createdAt: new Date() } // approximate date for UI
         setBins([newBin, ...bins])
         selectBin(newBin)
         setSuccessModal({ show: true, message: `New bin created with Serial: ${nextSerial}` })
         
-        notifyBinChange(db, 'create', docRef.id)
+        notifyBinChange(db, 'create', nextSerial)
 
     } catch (error) {
         console.error("Error creating bin:", error)
@@ -339,28 +340,46 @@ export default function AdminCustomize() {
           if (!currentBin) return;
 
           // --- Emptied / Emptying: special flow ---
-          if (reason === 'Emptied / Emptying') {
-              let emptiedByName = auth.currentUser.email || auth.currentUser.uid;
+          // Requirement: "it should still go to the archive pages but it should not appear in the dashboard since it was remove for emptying"
+          if (reason === 'Emptying') {
+              let archivedByName = auth.currentUser.email || auth.currentUser.uid;
               try {
                   const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
                   if (userDoc.exists()) {
                       const userData = userDoc.data()
-                      emptiedByName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || auth.currentUser.email || auth.currentUser.uid
+                      archivedByName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || auth.currentUser.email || auth.currentUser.uid
                   }
               } catch(e) { /* ignore */ }
 
-              // Update bin in-place: mark as emptied, store timestamp, reset waste levels
-              const binRef = doc(db, 'bins', String(currentBin.id))
-              await updateDoc(binRef, {
-                  status: 'emptied',
-                  lastEmptiedAt: serverTimestamp(),
-                  emptiedBy: emptiedByName,
-                  fill_level: 0,
-                  general_waste: 0,
-                  waste_composition: { recyclable: 0, biodegradable: 0, non_biodegradable: 0 }
+              // Move to ARCHIVE but with reason 'Emptying'
+              // This removes it from 'bins' collection, so it disappears from Dashboard.
+              await runTransaction(db, async (tx) => {
+                  const binRef = doc(db, 'bins', String(currentBin.id))
+                  const archiveRef = doc(db, 'archive', String(currentBin.id))
+                  
+                  // READ
+                  const binSnap = await tx.get(binRef)
+                  if (!binSnap.exists()) throw new Error("Bin not found")
+                  const binData = binSnap.data()
+
+                  // WRITE
+                  tx.set(archiveRef, {
+                      ...binData,
+                      status: 'archived',
+                      archivedAt: serverTimestamp(),
+                      archiveDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                      archiveReason: reason,
+                      reason: reason,
+                      lastActive: binData.lastConfigured ? formatDate(binData.lastConfigured) : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                      archivedBy: auth.currentUser ? auth.currentUser.uid : null,
+                      archivedByName: archivedByName,
+                      originalData: binData // Store original data to restore exact state later if needed (though requirement says reset on restore)
+                  })
+
+                  tx.delete(binRef)
               })
 
-              // UI Update: remove from local list (emptied bins hidden from dashboard)
+              // UI Update
               const remaining = bins.filter(b => b.id !== selectedBinId)
               setBins(remaining)
               if (remaining.length > 0) selectBin(remaining[0])
@@ -370,8 +389,8 @@ export default function AdminCustomize() {
               }
 
               setShowRemoveModal(false)
-              setToast({ show: true, message: `Bin "${currentBin.binName}" marked as emptied`, type: 'success' })
-              notifyBinChange(db, 'emptied', currentBin.id)
+              setToast({ show: true, message: `Bin "${currentBin.binName}" removed for Emptying`, type: 'success' })
+              notifyBinChange(db, 'archive', currentBin.id)
               return;
           }
 
@@ -672,7 +691,7 @@ export default function AdminCustomize() {
                                 onChange={(e) => setRemoveReason(e.target.value)}
                             >
                                 <option value="">Select a reason</option>
-                                <option value="Emptied / Emptying">Emptied / Emptying</option>
+                                <option value="Emptying">Emptying</option>
                                 <option value="Repair">Repair</option>
                                 <option value="Damaged">Damaged</option>
                                 <option value="Maintenance">Maintenance</option>
