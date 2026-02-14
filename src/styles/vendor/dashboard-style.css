@@ -553,7 +553,11 @@ body {
 /* --- Hazardous --- */
 .hazardous-card { padding: 0; overflow: hidden; }
 .haz-header { background: #007f5f; padding: 15px; color: white; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
-.haz-body { padding: 15px; }
+.haz-body { 
+    padding: 15px; 
+    background: white;
+    height: 400px;
+}
 .all-clear-card {
     background: #e8f5e9; border-left: 4px solid #4caf50;
     padding: 15px; border-radius: 6px; margin-bottom: 20px;
@@ -663,7 +667,7 @@ body {
 
 /* --- All Bins View (Toggle) --- */
 .all-bins-card {
-    background: #007f5f;
+    background: white;
     padding: 0;
     overflow: hidden;
     display: none;
@@ -672,9 +676,12 @@ body {
 }
 
 .ab-outer-header {
-    padding: 15px 20px;
+    background: #007f5f;
+    padding: 12px 20px;
     color: white;
+    font-size: 14px;
     font-weight: 600;
+    flex-shrink: 0;
 }
 
 .ab-list-container {
@@ -685,6 +692,19 @@ body {
     flex-direction: column;
     gap: 15px;
     overflow-y: auto;
+    max-height: 360px;
+    scrollbar-width: thin;
+    scrollbar-color: #c4c4c4 transparent;
+}
+.ab-list-container::-webkit-scrollbar {
+    width: 5px;
+}
+.ab-list-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.ab-list-container::-webkit-scrollbar-thumb {
+    background-color: #c4c4c4;
+    border-radius: 4px;
 }
 
 .ab-item {
@@ -780,5 +800,50 @@ body {
 }
 .chart-line {
     transition: points 0.5s ease;
+}
+
+/* ============================================
+   ADDITIONAL STYLES FOR CHART.JS INTEGRATION
+============================================ */
+
+/* Red maintenance dot */
+.d-red { background: #f44336; }
+
+/* Chart.js canvas containers */
+canvas {
+    max-width: 100%;
+    height: auto !important;
+}
+
+/* Ensure Chart.js doughnut wrapper doesn't overflow */
+.donut-section canvas,
+.bin-col-1 canvas {
+    display: block;
+}
+
+/* Indicator dot for bins requiring emptying */
+.indicator-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #9ca3af;
+    margin-left: 6px;
+}
+
+/* Hazardous alert card — extra styles for dynamic status */
+.hazardous-card .haz-body .det-list {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* Metrics right-stack full height */
+.right-stack {
+    flex-direction: column;
+}
+
+/* Smooth chart transitions */
+.bin-col-3 > div {
+    transition: opacity 0.3s ease;
 }
 

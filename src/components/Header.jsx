@@ -4,6 +4,7 @@ import { getAuth, signOut } from 'firebase/auth'
 import { getFirestore, doc, getDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import GlobalSearch from './GlobalSearch'
+import { fetchNotifications } from '../utils/fillLevelNotifier'
 import '../styles/vendor/header.css'
 
 export default function Header() {
@@ -12,6 +13,7 @@ export default function Header() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [initials, setInitials] = useState('U')
+  const [notifications, setNotifications] = useState([])
   
   const profileRef = useRef(null)
   const notifRef = useRef(null)
@@ -70,6 +72,21 @@ export default function Header() {
     }
   }, [])
 
+  // Load notifications from Firestore on mount and when dropdown opens
+  useEffect(() => {
+    const app = initFirebase()
+    const db = getFirestore(app)
+    fetchNotifications(db).then(setNotifications)
+  }, [])
+
+  useEffect(() => {
+    if (showNotifications) {
+      const app = initFirebase()
+      const db = getFirestore(app)
+      fetchNotifications(db).then(setNotifications)
+    }
+  }, [showNotifications])
+
   const handleLogout = async () => {
     try {
       const auth = getAuth()
@@ -118,7 +135,7 @@ export default function Header() {
                 <path d="M12 3C9.8 3 8 4.8 8 7V8.2C8 8.7 7.8 9.2 7.5 9.6L6.4 11.1C6.1 11.5 6 11.9 6 12.3V16H18V12.3C18 11.9 17.9 11.5 17.6 11.1L16.5 9.6C16.2 9.2 16 8.7 16 8.2V7C16 4.8 14.2 3 12 3Z" fill="none" stroke="#027A5E" strokeWidth="1.6" />
                 <path d="M10 17C10.3 18.2 11.1 19 12 19C12.9 19 13.7 18.2 14 17" fill="none" stroke="#027A5E" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
-              <span className="sb-notification-dot" />
+              {notifications.length > 0 && <span className="sb-notification-dot" />}
             </span>
           </button>
 
@@ -127,27 +144,23 @@ export default function Header() {
                 <h3 className="sb-notification-dropdown__header-title">Notifications</h3>
             </div>
             <div className="sb-notification-dropdown__body">
-                <div className="sb-notification-item">
-                    <div className="sb-notification-item__icon">⚠</div>
-                    <div className="sb-notification-item__content">
-                        <div className="sb-notification-item__title">Bin2: Full</div>
-                        <div className="sb-notification-item__meta">5 min ago</div>
+                {notifications.length === 0 ? (
+                    <div className="sb-notification-item">
+                        <div className="sb-notification-item__content">
+                            <div className="sb-notification-item__title" style={{ color: '#999' }}>No notifications</div>
+                        </div>
                     </div>
-                </div>
-                <div className="sb-notification-item">
-                    <div className="sb-notification-item__icon">⚠</div>
-                    <div className="sb-notification-item__content">
-                        <div className="sb-notification-item__title">Bin4: Full</div>
-                        <div className="sb-notification-item__meta">5 hours ago</div>
-                    </div>
-                </div>
-                <div className="sb-notification-item">
-                    <div className="sb-notification-item__icon">⚠</div>
-                    <div className="sb-notification-item__content">
-                        <div className="sb-notification-item__title">Your restoration request is denied.</div>
-                        <div className="sb-notification-item__meta">1 hour ago</div>
-                    </div>
-                </div>
+                ) : (
+                    notifications.map(notif => (
+                        <div className="sb-notification-item" key={notif.id}>
+                            <div className="sb-notification-item__icon">{notif.icon || '⚠'}</div>
+                            <div className="sb-notification-item__content">
+                                <div className="sb-notification-item__title">{notif.message}</div>
+                                <div className="sb-notification-item__meta">{notif.timeAgo}</div>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
           </div>
         </div>

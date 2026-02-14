@@ -1,0 +1,3 @@
+# Never commit Firebase service account keys
+serviceAccountKey.json
+*.json

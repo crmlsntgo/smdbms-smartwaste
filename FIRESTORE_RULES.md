@@ -114,6 +114,20 @@ service cloud.firestore {
       allow read, delete: if isSignedIn() && isAdmin();
     }
 
+    // Notifications collection (for fill-level alerts and system notifications)
+    match /notifications/{notificationId} {
+      // Read: admins and utility staff can read notifications
+      allow read: if isSignedIn() && (isAdmin() || isUtility());
+      
+      // Create: admins and utility staff can create notifications
+      allow create: if isSignedIn() && (isAdmin() || isUtility());
+      
+      // Update: admins and utility staff can update notifications (e.g., to dismiss them)
+      allow update: if isSignedIn() && (isAdmin() || isUtility());
+      
+      // Delete: only admins can delete notifications
+      allow delete: if isSignedIn() && isAdmin();
+    }
   }
 }
 ```

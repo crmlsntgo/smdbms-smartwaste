@@ -354,6 +354,12 @@ export default function Customize() {
               lastConfigured: serverTimestamp()
           }
 
+          // If bin was emptied, restore it to Active on save
+          const currentBin = bins.find(b => b.id === selectedBinId)
+          if (currentBin && currentBin.status && currentBin.status.toLowerCase() === 'emptied') {
+              updateData.status = 'Active'
+          }
+
           await updateDoc(binRef, updateData)
           
           // Update local state
@@ -387,6 +393,44 @@ export default function Customize() {
           const currentBin = bins.find(b => b.id === selectedBinId)
           if (!currentBin) return;
 
+          // --- Emptied / Emptying: special flow ---
+          if (reason === 'Emptied / Emptying') {
+              let emptiedByName = auth.currentUser.email || auth.currentUser.uid;
+              try {
+                  const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid))
+                  if (userDoc.exists()) {
+                      const userData = userDoc.data()
+                      emptiedByName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || auth.currentUser.email || auth.currentUser.uid
+                  }
+              } catch(e) { /* ignore */ }
+
+              // Update bin in-place: mark as emptied, store timestamp, reset waste levels
+              const binRef = doc(db, 'bins', String(currentBin.id))
+              await updateDoc(binRef, {
+                  status: 'emptied',
+                  lastEmptiedAt: serverTimestamp(),
+                  emptiedBy: emptiedByName,
+                  fill_level: 0,
+                  general_waste: 0,
+                  waste_composition: { recyclable: 0, biodegradable: 0, non_biodegradable: 0 }
+              })
+
+              // UI Update: remove from local list (emptied bins hidden from dashboard)
+              const remaining = bins.filter(b => b.id !== selectedBinId)
+              setBins(remaining)
+              if (remaining.length > 0) selectBin(remaining[0])
+              else {
+                  setSelectedBinId(null)
+                  setFormData({ binName:'', capacity:'', serial:'', threshold:'', location:'', imageUrl:'', sensorStatus:'' })
+              }
+
+              setShowRemoveModal(false)
+              setToast({ show: true, message: `Bin "${currentBin.binName}" marked as emptied`, type: 'success' })
+              notifyBinChange(db, 'emptied', currentBin.id)
+              return;
+          }
+
+          // --- Standard archive flow ---
           // Get user info for Archived By field
           let archivedByName = auth.currentUser.email || auth.currentUser.uid;
           try {
@@ -449,7 +493,7 @@ export default function Customize() {
 
       } catch (error) {
           console.error("Remove failed:", error)
-          alert(`Failed to archive "${bins.find(b=>b.id===selectedBinId)?.binName}". Check console.`)
+          alert(`Failed to remove "${bins.find(b=>b.id===selectedBinId)?.binName}". Check console.`)
       }
   }
 
@@ -685,6 +729,7 @@ export default function Customize() {
                                 onChange={(e) => setRemoveReason(e.target.value)}
                             >
                                 <option value="">Select a reason</option>
+                                <option value="Emptied / Emptying">Emptied / Emptying</option>
                                 <option value="Repair">Repair</option>
                                 <option value="Damaged">Damaged</option>
                                 <option value="Maintenance">Maintenance</option>
@@ -759,7 +804,7 @@ export default function Customize() {
                 show={toast.show} 
                 type={toast.type}
                 onClose={() => setToast({ ...toast, show: false })} 
-                position="bottom-right"
+                position="top-right"
             />
     </div>
   )
