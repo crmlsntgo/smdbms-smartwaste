@@ -317,12 +317,12 @@ export default function AdminDashboard() {
                             <p>Distribution and trends across waste categories</p>
                         </div>
                         <div className="waste-body">
-                            <div className="charts-row">
+                            <div className="charts-row" style={{ alignItems: 'flex-start' }}>
                                 {/* Current Distribution - Chart.js Doughnut */}
                                 <div className="donut-section">
-                                    <div style={{textAlign: 'center'}}>
-                                        <h4 style={{fontSize: '12px', marginBottom: '0'}}>Current Distribution</h4>
-                                        <div style={{maxWidth: '400px', margin: '0 auto'}}>
+                                    <div style={{textAlign: 'center', width: '100%'}}>
+                                        <h4 style={{fontSize: '12px', marginBottom: '10px'}}>Current Distribution</h4>
+                                        <div style={{maxWidth: '280px', margin: '0 auto'}}>
                                             <WasteDoughnutChart
                                                 recyclable={pRecyc}
                                                 biodegradable={pBio}
@@ -333,9 +333,9 @@ export default function AdminDashboard() {
                                 </div>
                                 {/* General Waste - Chart.js Ring */}
                                 <div className="donut-section">
-                                    <div style={{textAlign: 'center'}}>
-                                        <h4 style={{fontSize: '12px', marginBottom: '20px'}}>General Waste</h4>
-                                        <div style={{maxWidth: '220px', margin: '0 auto'}}>
+                                    <div style={{textAlign: 'center', width: '100%'}}>
+                                        <h4 style={{fontSize: '12px', marginBottom: '10px'}}>General Waste</h4>
+                                        <div style={{maxWidth: '280px', margin: '0 auto'}}>
                                             <GeneralWasteChart value={generalWaste} />
                                         </div>
                                     </div>

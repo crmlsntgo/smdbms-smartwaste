@@ -148,6 +148,9 @@ export function GeneralWasteChart({ value = 0 }) {
     responsive: true,
     maintainAspectRatio: true,
     cutout: '72%',
+    layout: {
+      padding: 40
+    },
     plugins: {
       legend: { display: false },
       tooltip: { enabled: false }
