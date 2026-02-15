@@ -15,7 +15,8 @@ import {
     serverTimestamp,
     writeBatch,
     runTransaction,
-    setDoc
+    setDoc,
+    onSnapshot
 } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
@@ -61,6 +62,16 @@ export default function AdminArchive() {
         const app = initFirebase()
         const auth = getAuth(app)
         const db = getFirestore(app)
+        
+        // Metadata Sync (Real-time updates)
+        const unsubMeta = onSnapshot(doc(db, 'settings', 'binMetadata'), (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                if (['delete', 'restore', 'archive', 'create'].includes(data.lastAction)) {
+                    loadAllData(db);
+                }
+            }
+        });
 
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -85,7 +96,10 @@ export default function AdminArchive() {
             }
         })
 
-        return () => unsubscribe()
+        return () => {
+             unsubMeta()
+             unsubscribe()
+        }
     }, [])
 
     // Polling for expired deleted bins
@@ -262,6 +276,9 @@ export default function AdminArchive() {
             setAllBins(prev => prev.map(b => b.id === id ? { ...b, status: 'Restored', modifiedBy: userName } : b))
             setToast({ show: true, message: "Bin restored successfully. 1 Day expired.", type: 'success' })
             setShowRestoreModal(false)
+
+            notifyBinChange(db, 'restore', id)
+
         } catch (error) {
             console.error("Restore failed", error)
             alert('Failed to restore bin.')

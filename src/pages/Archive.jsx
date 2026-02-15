@@ -17,7 +17,8 @@ import {
     serverTimestamp, 
     writeBatch,
     runTransaction,
-    setDoc
+    setDoc,
+    onSnapshot 
 } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
@@ -88,6 +89,18 @@ export default function Archive() {
              }
         }, 10000)
 
+        // Metadata Sync (Real-time updates without page reload)
+        const unsubMeta = onSnapshot(doc(db, 'settings', 'binMetadata'), (snap) => {
+            if (snap.exists() && auth.currentUser) {
+                const data = snap.data();
+                // If any action happens (delete, restore, archive, create), refresh the list
+                // This ensures consistency across pages/sessions
+                if (['delete', 'restore', 'archive', 'create'].includes(data.lastAction)) {
+                    loadArchivedBins(db, auth.currentUser);
+                }
+            }
+        });
+
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // 1. Check Role
@@ -111,6 +124,7 @@ export default function Archive() {
 
         return () => {
             clearInterval(interval)
+            unsubMeta()
             unsubscribe()
         }
     }, [])
@@ -284,6 +298,10 @@ export default function Archive() {
             // Optimistic update
             setAllBins(prev => prev.map(b => b.id === id ? { ...b, status: 'Restored' } : b))
             setToast({ show: true, message: "Bin restored successfully. 1 Day expired.", type: 'success' })
+            
+            // Notify other clients
+            notifyBinChange(db, 'restore', id)
+            
             setShowRestoreModal(false)
         } catch (error) {
             console.error("Restore failed", error)
