@@ -28,6 +28,10 @@ html.dark .main-content {
     color: #f3f4f6;
 }
 
+html.dark .sb-logo__subtitle {
+    color: #ffffff !important;
+}
+
 /* Headings & Text */
 html.dark h4, html.dark h5, html.dark h6,
 html.dark .sb-card-title,

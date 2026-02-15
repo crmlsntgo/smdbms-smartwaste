@@ -5,7 +5,7 @@ import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import { WasteDoughnutChart, GeneralWasteChart } from '../components/charts/WasteOverviewChart'
-import { SystemOverviewCard, computeMaintenanceSchedule } from '../components/charts/SystemOverviewCard'
+import { computeMaintenanceSchedule } from '../components/charts/SystemOverviewCard'
 import { SingleBinFillChart, FillTrendChart, WasteCompositionBar } from '../components/charts/SingleBinCharts'
 import { HazardousAlertCard, processHazardousData } from '../components/charts/HazardousAlertCard'
 import { MetricsCards, processMetricsData } from '../components/charts/MetricsCards'
@@ -113,7 +113,6 @@ export default function AdminDashboard() {
   const [systemStats, setSystemStats] = useState({
       totalBins: 0,
       activeBins: 0,
-      avgFill: 0,
       binsNeedingEmpty: 0
   })
   const [wasteComp, setWasteComp] = useState({
@@ -188,7 +187,6 @@ export default function AdminDashboard() {
         setSystemStats({
           totalBins: total,
           activeBins: active,
-          avgFill: total > 0 ? Math.round(fillSum / total) : 0,
           binsNeedingEmpty: emptyCount
         })
 
@@ -385,15 +383,65 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* System Overview - Dynamic */}
-                    <SystemOverviewCard
-                        activeBins={systemStats.activeBins}
-                        totalBins={systemStats.totalBins}
-                        averageFill={systemStats.avgFill}
-                        binsNeedingEmptying={systemStats.binsNeedingEmpty}
-                        updatedAt={lastUpdated}
-                        maintenanceItems={maintenanceItems}
-                    />
+                    {/* System Overview (matches utility dashboard — Average Fill removed) */}
+                    <div className="card system-card flex-1">
+                        <div className="system-header">
+                            <span className="system-title">System Overview</span>
+                            <span className="last-updated">
+                                <i className="fas fa-sync-alt" style={{ marginRight: '6px', fontSize: '10px' }}></i>
+                                {lastUpdated ? lastUpdated.toLocaleString() : 'Loading...'}
+                            </span>
+                        </div>
+                        <div className="system-body">
+                            <div className="sys-stat-row">
+                                <span>Active Bins</span>
+                                <span className="sys-val">
+                                    {systemStats.activeBins}/{systemStats.totalBins}
+                                    <span className="badge-active" style={{
+                                        backgroundColor: systemStats.activeBins > 0 ? '#e8f5e9' : '#f3f4f6',
+                                        color: systemStats.activeBins > 0 ? '#2e7d32' : '#9ca3af',
+                                        marginLeft: '8px', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600
+                                    }}>
+                                        {systemStats.activeBins > 0 ? 'Active' : 'No Bins'}
+                                    </span>
+                                </span>
+                            </div>
+
+                            <div className="sys-stat-row">
+                                <span>
+                                    Bins Requiring Emptying
+                                    <span style={{
+                                        display: 'inline-block', width: '8px', height: '8px',
+                                        borderRadius: '50%',
+                                        backgroundColor: systemStats.binsNeedingEmpty > 0 ? '#ef4444' : '#9ca3af',
+                                        marginLeft: '6px'
+                                    }}></span>
+                                </span>
+                                <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
+                                     <span className="sys-val" style={{marginBottom:'4px'}}>{systemStats.binsNeedingEmpty}</span>
+                                </div>
+                            </div>
+
+                            <div className="maint-title">
+                                <i className="fas fa-calendar-alt" style={{color:'#ff9800'}}></i> Bins To Be Maintenanced
+                            </div>
+                            <div className="maint-list">
+                                {maintenanceItems.length === 0 ? (
+                                    <span style={{ display: 'block', fontSize: '0.85rem', color: '#999' }}>No scheduled maintenance</span>
+                                ) : (
+                                    maintenanceItems.map((item, idx) => (
+                                        <div className="maint-item" key={idx}>
+                                            <div className={`m-dot d-${item.color === 'red' ? 'red' : item.color === 'blue' ? 'blue' : item.color === 'purple' ? 'purple' : 'green'}`}></div>
+                                            <div className="m-content">
+                                                <h4>{item.binName} - {item.task}</h4>
+                                                <p>{item.time}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* BOTTOM ROW: Single Bin + Hazardous + Metrics */}

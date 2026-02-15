@@ -93,15 +93,27 @@ export default function Landing() {
          <div className="dashboard-preview-card">
              <img src="https://placehold.co/800x500/e0f2f1/00695c?text=Dashboard+Preview" alt="Smart Waste Dashboard" className="hero-img" />
              
-             {/* Floating Badge */}
-             <div className="floating-badge">
+             {/* Floating Badges (auto-swap while moving) */}
+             <div className="floating-badge-wrapper" aria-hidden="false">
+               <div className="floating-badge floating-badge--primary" role="status">
                  <div className="fb-icon">
-                     <i className="fas fa-chart-bar"></i>
+                   <i className="fas fa-chart-bar"></i>
                  </div>
                  <div className="fb-content">
-                     <div className="fb-title">Real-time Analytics</div>
-                     <div className="fb-sub">Track waste levels instantly</div>
+                   <div className="fb-title">Real-time Analytics</div>
+                   <div className="fb-sub">Track waste levels instantly</div>
                  </div>
+               </div>
+
+               <div className="floating-badge floating-badge--alt" role="status" aria-hidden="true">
+                 <div className="fb-icon fb-icon--alt">
+                   <i className="fas fa-bell"></i>
+                 </div>
+                 <div className="fb-content">
+                   <div className="fb-title">Smart Alerts</div>
+                   <div className="fb-sub">Instant bin alerts</div>
+                 </div>
+               </div>
              </div>
          </div>
       </div>

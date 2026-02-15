@@ -102,14 +102,14 @@ export default function Header() {
     <header className="sb-header">
       <div className="sb-header__left">
         <div className="sb-logo">
-          <div className="sb-logo__icon">
+          <a href="dashboard" className="sb-logo__icon" >
             <svg viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
               <rect x="5" y="8" width="14" height="11" rx="2" ry="2" fill="none" stroke="white" strokeWidth="1.6" />
               <path d="M8 8V6.5C8 5.7 8.7 5 9.5 5H14.5C15.3 5 16 5.7 16 6.5V8" fill="none" stroke="white" strokeWidth="1.6" />
               <line x1="10" y1="10" x2="10" y2="17" stroke="white" strokeWidth="1.6" />
               <line x1="14" y1="10" x2="14" y2="17" stroke="white" strokeWidth="1.6" />
             </svg>
-          </div>
+          </a>
           <div className="sb-logo__text">
             <span className="sb-logo__title">SMART</span>
             <span className="sb-logo__subtitle">DUSTBIN</span>

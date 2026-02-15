@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import '../styles/vendor/login-style.css'
+import { redirectIfAuthenticated } from '../utils/authManager'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -134,6 +135,12 @@ export default function Login() {
           alert('Error: ' + error.message)
       }
   }
+
+  // If user is already authenticated, redirect away from login/register pages
+  useEffect(() => {
+    const unsub = redirectIfAuthenticated()
+    return () => { if (typeof unsub === 'function') unsub() }
+  }, [])
 
   return (
     <div className="login-page login-body">

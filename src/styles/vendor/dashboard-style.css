@@ -315,7 +315,7 @@ body {
 }
 
 .waste-header {
-    background: #007f5f; /* Deep Green */
+    background: linear-gradient(-135deg, var(--sb-green) 0%, var(--sb-green-dark) 80%);
     padding: 15px 24px;
     color: white;
 }
@@ -419,7 +419,7 @@ body {
     overflow: hidden;
 }
 .system-header {
-    background: #007f5f; /* Moved green background to header */
+    background: linear-gradient(-135deg, var(--sb-green) 0%, var(--sb-green-dark) 80%);
     padding: 20px;
     border-bottom: 1px solid rgba(255,255,255,0.1);
     display: flex;
@@ -488,7 +488,7 @@ body {
     overflow: hidden;
 }
 .bin-header {
-    background: #007f5f;
+    background: linear-gradient(-135deg, var(--sb-green) 0%, var(--sb-green-dark) 80%);
     color: white;
     padding: 12px 20px;
     display: flex;
@@ -552,7 +552,7 @@ body {
 
 /* --- Hazardous --- */
 .hazardous-card { padding: 0; overflow: hidden; }
-.haz-header { background: #007f5f; padding: 15px; color: white; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
+.haz-header { background: linear-gradient(-135deg, var(--sb-green) 0%, var(--sb-green-dark) 80%); padding: 15px; color: white; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
 .haz-body { 
     padding: 15px; 
     background: white;

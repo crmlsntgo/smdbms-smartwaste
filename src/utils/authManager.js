@@ -1,6 +1,6 @@
 import initFirebase from '../firebaseConfig'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 
 import * as presenceModule from './presence'
 
@@ -27,6 +27,26 @@ export async function fetchUserProfile(uid) {
   return null
 }
 
+export async function preventMultipleLogins(user) {
+  if (!user) return;
+
+  const sessionDocRef = doc(_db, 'activeSessions', user.uid);
+  try {
+    const sessionDoc = await getDoc(sessionDocRef);
+    if (sessionDoc.exists()) {
+      // Redirect to the active session
+      alert('You are already logged in on another device. Redirecting to your active session.');
+      window.location.href = '/dashboard';
+      return;
+    }
+
+    // Mark this session as active
+    await setDoc(sessionDocRef, { timestamp: Date.now() });
+  } catch (e) {
+    console.error('Error checking active sessions:', e);
+  }
+}
+
 export function startAuthListeners({ onUser } = {}) {
   const app = getApp()
   _auth = getAuth(app)
@@ -34,7 +54,8 @@ export function startAuthListeners({ onUser } = {}) {
 
   const unsubscribe = onAuthStateChanged(_auth, async (user) => {
     if (user) {
-      // try to get role
+      await preventMultipleLogins(user); // Check for multiple logins
+
       let userRole = null
       try {
         const userDoc = await getDoc(doc(_db, 'users', user.uid))
@@ -77,6 +98,41 @@ export function startAuthListeners({ onUser } = {}) {
       _presenceHandle = null
     }
   }
+}
+
+/**
+ * Redirect helper for auth pages: if a persisted Firebase session exists,
+ * fetch role (if needed) and redirect to the appropriate dashboard.
+ * Returns the `onAuthStateChanged` unsubscribe function.
+ */
+export function redirectIfAuthenticated() {
+  const app = getApp()
+  const auth = getAuth(app)
+  const db = getFirestore(app)
+
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (!user) return
+
+    try {
+      let role = null
+      try { role = window.localStorage.getItem('sb_role') } catch (e) { role = null }
+
+      if (!role) {
+        const uSnap = await getDoc(doc(db, 'users', user.uid))
+        if (uSnap && uSnap.exists()) role = (uSnap.data().role || 'utility staff').toString().toLowerCase()
+        try { window.localStorage.setItem('sb_role', role) } catch (e) {}
+      }
+
+      const r = (role || 'utility staff').toString().toLowerCase()
+      if (r === 'admin') window.location.href = '/admin/dashboard'
+      else window.location.href = '/dashboard'
+    } catch (err) {
+      console.warn('redirectIfAuthenticated failed:', err)
+      window.location.href = '/dashboard'
+    }
+  })
+
+  return unsubscribe
 }
 
 export async function performLogout() {

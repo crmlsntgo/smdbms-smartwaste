@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth'
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Toast from '../components/Toast'
 import '../styles/vendor/register-style.css'
+import { redirectIfAuthenticated } from '../utils/authManager'
 
 export default function Register() {
   const [firstName, setFirstName] = useState('')
@@ -17,6 +18,12 @@ export default function Register() {
   const [emailError, setEmailError] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
   const [isRegistering, setIsRegistering] = useState(false)
+
+  // Redirect away from auth pages if already authenticated
+  useEffect(() => {
+    const unsub = redirectIfAuthenticated()
+    return () => { if (typeof unsub === 'function') unsub() }
+  }, [])
 
   // Helper to generate unique identifier (matching legacy 8-digit format)
   const generateUniqueIdentifier = async (db) => {

@@ -99,7 +99,7 @@ export default function Dashboard() {
   const [user, setUser] = useState(null)
   const [bins, setBins] = useState([])
   const [binDetail, setBinDetail] = useState(null)
-  const [systemStats, setSystemStats] = useState({ activeBins: 0, totalBins: 0, avgFill: 0, binsNeedingEmpty: 0 })
+  const [systemStats, setSystemStats] = useState({ activeBins: 0, totalBins: 0, binsNeedingEmpty: 0 })
   const [lastUpdated, setLastUpdated] = useState(null)
   const [hazardousData, setHazardousData] = useState({ hasHazardous: false, detections: [] })
   const [loading, setLoading] = useState(true)
@@ -164,7 +164,6 @@ export default function Dashboard() {
         setSystemStats({
           totalBins: total,
           activeBins: active,
-          avgFill: total > 0 ? Math.round(fillSum / total) : 0,
           binsNeedingEmpty: emptyCount
         })
 
