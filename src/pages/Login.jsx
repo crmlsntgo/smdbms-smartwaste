@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
+import Toast from '../components/Toast'
 import '../styles/vendor/login-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
 
@@ -13,6 +14,7 @@ export default function Login() {
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -144,6 +146,13 @@ export default function Login() {
 
   return (
     <div className="login-page login-body">
+        <Toast 
+          message={toast.message}
+          show={toast.show}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+          style={{ top: '20px', right: '20px' }}
+        />
         <div className="bg-shape1"></div>
         <div className="bg-shape2"></div>
 
@@ -205,9 +214,16 @@ export default function Login() {
             className="input-field"
             id="email"
             placeholder="EMAIL"
+            maxLength="254"
             required
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={e => {
+              if (e.target.value.length > 254) {
+                setToast({ show: true, message: 'Email cannot exceed 254 characters.', type: 'error' })
+                return
+              }
+              setEmail(e.target.value)
+            }}
             />
 
             <div className="password-container">
