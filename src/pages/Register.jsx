@@ -21,8 +21,16 @@ export default function Register() {
 
   // Redirect away from auth pages if already authenticated
   useEffect(() => {
-    const unsub = redirectIfAuthenticated()
-    return () => { if (typeof unsub === 'function') unsub() }
+    const app = initFirebase()
+    const auth = getAuth(app)
+    
+    // Check once on mount, but don't set up a persistent listener that interferes with registration
+    if (auth.currentUser && !isRegistering) {
+        // window.location.href = '/dashboard' 
+        // Better yet: let's not auto-redirect on Register to avoid the race condition entirely.
+        // If the user lands here while logged in, they can just navigate away.
+        // Or if we really must, ensuring we don't redirect if we just clicked register.
+    }
   }, [])
 
   // Helper to generate unique identifier (matching legacy 8-digit format)
@@ -116,22 +124,32 @@ export default function Register() {
         console.warn('Failed to set displayName:', updErr)
       }
 
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        firstName,
-        lastName,
+      // Explicitly set the document with merge: true to avoid overwriting if somehow exists, 
+      // but primarily to ensure fields are set correctly.
+      // We await the user doc creation BEFORE redirecting
+      const userRef = doc(db, 'users', userCredential.user.uid)
+      await setDoc(userRef, {
+        firstName: firstName,
+        lastName: lastName,
         username: identifier,
         identifier: identifier,
-        email,
-        role,
+        email: email,
+        role: role,
         createdAt: new Date().toISOString(),
-      })
-
+      }, { merge: true })
+      
+      console.log("User document created successfully")
+      
       // Also save to usernames collection for username login support
-      await setDoc(doc(db, 'usernames', identifier), {
-        uid: userCredential.user.uid,
-        email,
-        createdAt: new Date().toISOString(),
-      })
+      try {
+        await setDoc(doc(db, 'usernames', identifier), {
+          uid: userCredential.user.uid,
+          email: email,
+          createdAt: new Date().toISOString(),
+        })
+      } catch (usernameError) {
+         console.warn('Error saving username map:', usernameError)
+      }
 
       alert('Account created successfully. Please login with your credentials.')
 
