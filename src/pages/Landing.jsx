@@ -1,5 +1,6 @@
 import React, { useLayoutEffect } from 'react'
 import '../styles/vendor/landing-page.css'
+import LandingFooter from '../components/LandingFooter'
 
 export default function Landing() {
   useLayoutEffect(() => {
@@ -32,8 +33,8 @@ export default function Landing() {
             </a>
             <nav className="landing-nav__menu">
                 <a href="#" className="landing-nav__link">Product</a>
-                <a href="#" className="landing-nav__link">Support</a>
-                <a href="#" className="landing-nav__link">Pricing</a>
+                <a href="/support" className="landing-nav__link">Support</a>
+                <a href="#" className="landing-nav__link">Services</a>
             </nav>
             <div className="landing-nav__actions">
                 <a href="/login" className="landing-nav__signin">Sign in</a>
@@ -268,12 +269,7 @@ export default function Landing() {
   </section>
 
   {/* Footer */}
-  <footer className="landing-footer">
-    <div className="landing-footer__container">
-      <a href="#" className="landing-footer__link">Privacy Policy</a>
-      <span className="landing-footer__copyright">Copyright@SmartDustbin 2026</span>
-    </div>
-  </footer>
+  <LandingFooter />
     </div>
   )
 }

@@ -14,6 +14,7 @@ import Settings from './pages/Settings'
 import Archive from './pages/Archive'
 import AdminArchive from './pages/AdminArchive'
 import Landing from './pages/Landing'
+import Support from './pages/Support'
 import Users from './pages/Users'
 
 export default function App(){
@@ -84,7 +85,7 @@ export default function App(){
 
   useEffect(() => {
     // Exclude dark mode on Landing, Login, Register
-    const excludedRoutes = ['/', '/landing', '/login', '/register', '/setup'];
+    const excludedRoutes = ['/', '/landing', '/login', '/register', '/setup', '/support'];
     const isExcluded = excludedRoutes.includes(location.pathname);
 
     if (isExcluded) {
@@ -106,6 +107,7 @@ export default function App(){
       <Route path="/dashboard" element={<Dashboard/>} />
       <Route path="/admin/dashboard" element={<AdminDashboard/>} />
       <Route path="/landing" element={<Landing/>} />
+      <Route path="/support" element={<Support/>} />
       <Route path="/profile" element={<Profile/>} />
       <Route path="/login" element={<Login/>} />
       <Route path="/register" element={<Register/>} />

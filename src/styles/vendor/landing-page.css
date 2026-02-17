@@ -139,6 +139,7 @@ body.landing-page {
   border-radius: 50%;
   background: rgba(0, 255, 123, 0.103);
   backdrop-filter: blur(2px);
+  z-index: -1;
 }
 
 .bg-shape-1 {

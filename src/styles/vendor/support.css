@@ -1,0 +1,504 @@
+/* Pricing Page Styles */
+.pricing-main {
+    padding-top: 80px; /* Space for fixed header */
+    background-color: #ffffff;
+    /* font-family inherited from body.landing-page (Montserrat) */
+    color: #101828;
+    position: relative;
+    z-index: 1;
+}
+
+/* Hero Section */
+.pricing-hero {
+    text-align: center;
+    padding: 64px 20px;
+    background-color: #f9fafb;
+}
+
+.pricing-hero__label {
+    color: #00695c;
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 12px;
+}
+
+.pricing-hero__title {
+    font-size: 48px;
+    line-height: 1.2;
+    font-weight: 600;
+    color: #101828;
+    margin-bottom: 24px;
+}
+
+.text-highlight {
+    color: #00695c; 
+    /* Or maybe keep it dark and use the green for accent only? 
+       In the image, "Real support..." is dark, "from real experts" is dark.
+       Wait, let's look at the image again.
+       "Real support, from real experts" is black.
+       The line underneath "Real support" is green.
+       I will stick to dark text. 
+    */
+    color: #101828;
+}
+
+.pricing-hero__subtitle {
+    font-size: 20px;
+    line-height: 1.5;
+    color: #667085;
+    max-width: 768px;
+    margin: 0 auto;
+}
+
+/* Team Grid */
+.pricing-team {
+    padding: 64px 20px;
+    background-color: #f9fafb; /* Continue hero bg? */
+}
+
+.pricing-team__grid {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.team-member {
+    text-align: center;
+    width: 200px;
+}
+
+.team-member__img {
+    width: 100%;
+    aspect-ratio: 1; /* Square or slightly taller */
+    object-fit: cover;
+    margin-bottom: 16px;
+    filter: grayscale(100%); /* Often stylised images in these templates have filter */
+    /* Wait, the image shows greyscale portraits */
+}
+
+.team-member__name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #101828;
+    margin-bottom: 4px;
+}
+
+.team-member__role {
+    font-size: 16px;
+    color: #00695c; /* Green role text */
+    font-weight: 500;
+}
+
+/* Contact Section */
+.pricing-contact {
+    padding: 96px 20px;
+    background-color: #ffffff;
+}
+
+.pricing-contact__header {
+    text-align: center;
+    margin-bottom: 64px;
+}
+
+.contact-icon-wrapper {
+    font-size: 24px;
+    color: #00695c;
+    margin-bottom: 16px;
+}
+
+.pricing-contact__title {
+    font-size: 36px;
+    font-weight: 600;
+    color: #101828;
+    margin-bottom: 16px;
+}
+
+.pricing-contact__subtitle {
+    font-size: 20px;
+    color: #667085;
+    max-width: 768px;
+    margin: 0 auto 32px;
+}
+
+.contact-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid #d0d5dd;
+    color: #344054;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background-color: #f9fafb;
+    border-color: #00695c;
+    color: #00695c;
+}
+
+.btn-primary {
+    background-color: #00695c;
+    border: 1px solid #00695c;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #004d40;
+    border-color: #004d40;
+}
+
+.pricing-contact__content_wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    max-width: 1200px;
+    margin: 0 auto;
+    align-items: start;
+}
+
+/* Form Card */
+.contact-form-card {
+    background: #f9fafb;
+    padding: 40px;
+    border-radius: 16px;
+}
+
+.contact-form-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 32px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #344054;
+    margin-bottom: 6px;
+}
+
+.form-group input, 
+.form-group select, 
+.form-group textarea {
+    padding: 10px 14px;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    font-size: 16px;
+    color: #101828;
+    background: #ffffff;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.checklist-group {
+    margin-top: 10px;
+}
+
+.checklist-label {
+    display: block;
+    margin-bottom: 12px;
+}
+
+.checklist-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #667085;
+    cursor: pointer;
+}
+
+.btn-submit {
+    width: 100%;
+    background-color: #00695c;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 24px;
+}
+
+/* Contact Info Side */
+.contact-info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.info-item .info-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #101828;
+    margin-bottom: 8px;
+}
+
+.info-item .info-desc {
+    font-size: 16px;
+    color: #667085;
+    margin-bottom: 12px;
+}
+
+.info-item .info-link {
+    font-size: 16px;
+    font-weight: 600;
+    color: #00695c;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #12b76a; /* Green dot */
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.info-address {
+    font-style: normal;
+    color: #101828;
+    font-weight: 600;
+}
+
+/* Testimonial */
+.pricing-testimonial {
+    background-color: #f9fafb;
+    padding: 96px 20px;
+    text-align: center;
+}
+
+.testimonial-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.stars {
+    color: #fdb022; /* Yellow stars */
+    font-size: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+}
+
+.testimonial-quote {
+    font-size: 30px; /* Reduced from 36px to fit better */
+    font-weight: 500;
+    color: #101828;
+    line-height: 1.4;
+    margin-bottom: 32px;
+}
+
+.testimonial-author {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+.author-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.author-details {
+    text-align: left;
+}
+
+.author-name {
+    display: block;
+    font-weight: 600;
+    font-size: 18px;
+    color: #101828;
+    font-style: normal;
+}
+
+.author-role {
+    color: #667085;
+    font-size: 16px;
+}
+
+/* Logos */
+.pricing-logos {
+    padding: 64px 20px;
+    text-align: center;
+    border-top: 1px solid #eaecf0;
+}
+
+.logos-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #667085;
+    margin-bottom: 32px;
+}
+
+.logos-grid {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    align-items: center;
+    flex-wrap: wrap;
+    opacity: 0.6;
+}
+
+.logo-item {
+    font-size: 24px;
+    font-weight: 700;
+    color: #101828;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Footer Mods */
+.pricing-footer-mod {
+    background-color: #ffffff;
+    border-top: 1px solid #eaecf0;
+    padding-top: 64px;
+}
+
+.pricing-bottom-cta {
+    text-align: center;
+    margin-bottom: 64px;
+}
+
+.cta-icon {
+    margin-bottom: 20px;
+    color: #00695c;
+    font-size: 32px;
+}
+
+.cta-title {
+    font-size: 36px;
+    font-weight: 600;
+    color: #101828;
+    margin-bottom: 16px;
+}
+
+.cta-text {
+    font-size: 20px;
+    color: #667085;
+    margin-bottom: 32px;
+}
+
+.cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.footer-links-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) !important; /* Override landing flex if needed */
+    gap: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-bottom: 64px;
+    border-bottom: 1px solid #eaecf0;
+}
+
+.footer-col h4 {
+    color: #98a2b3;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+.footer-col a {
+    display: block;
+    color: #475467;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    text-decoration: none;
+}
+
+.footer-col a:hover {
+    color: #00695c;
+}
+
+.landing-footer__bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 32px 0;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.landing-footer__logo {
+    font-weight: 700;
+    font-size: 18px;
+    color: #101828;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .pricing-contact__content_wrapper {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .checklist-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-links-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .landing-footer__bottom {
+        flex-direction: column;
+        gap: 16px;
+    }
+}
