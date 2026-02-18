@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Toast from '../components/Toast'
 import '../styles/vendor/login-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
+
+// API base URL - adjust for production
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -15,6 +18,14 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
+  
+  // States for 5-digit code flow
+  const [resetStep, setResetStep] = useState('email') // 'email', 'code', 'newPassword'
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isResetting, setIsResetting] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -122,20 +133,103 @@ export default function Login() {
     }
   }
 
-  const handleResetPassword = async () => {
+  // Send 5-digit code to email
+  const handleSendResetCode = async () => {
       if(!resetEmail) {
           alert('Please enter your email')
           return
       }
+      setIsResetting(true)
       try {
-          const app = initFirebase()
-          const auth = getAuth(app)
-          await sendPasswordResetEmail(auth, resetEmail)
-          alert('Password reset link sent!')
-          setShowResetModal(false)
+          const response = await fetch(`${API_URL}/api/v1/auth/send-reset-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail })
+          })
+          const data = await response.json()
+          
+          if (!response.ok) {
+            alert(data.error || 'Failed to send reset code')
+            setIsResetting(false)
+            return
+          }
+          
+          alert('A 5-digit code has been sent to your email!')
+          setResetStep('code')
       } catch (error) {
           alert('Error: ' + error.message)
       }
+      setIsResetting(false)
+  }
+
+  // Verify the 5-digit code
+  const handleVerifyCode = async () => {
+      if(!resetCode || resetCode.length !== 5) {
+          alert('Please enter the 5-digit code')
+          return
+      }
+      setIsResetting(true)
+      try {
+          const response = await fetch(`${API_URL}/api/v1/auth/verify-reset-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail, code: resetCode })
+          })
+          const data = await response.json()
+          
+          if (!response.ok) {
+            alert(data.error || 'Invalid code')
+            setIsResetting(false)
+            return
+          }
+          
+          setResetStep('newPassword')
+      } catch (error) {
+          alert('Error: ' + error.message)
+      }
+      setIsResetting(false)
+  }
+
+  // Set new password
+  const handleResetPassword = async () => {
+      if(!newPassword || newPassword.length < 6) {
+          alert('Password must be at least 6 characters')
+          return
+      }
+      if(newPassword !== confirmPassword) {
+          alert('Passwords do not match')
+          return
+      }
+      setIsResetting(true)
+      try {
+          const response = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword })
+          })
+          const data = await response.json()
+          
+          if (!response.ok) {
+            alert(data.error || 'Failed to reset password')
+            setIsResetting(false)
+            return
+          }
+          
+          alert('Password reset successfully! You can now login with your new password.')
+          closeResetModal()
+      } catch (error) {
+          alert('Error: ' + error.message)
+      }
+      setIsResetting(false)
+  }
+
+  const closeResetModal = () => {
+      setShowResetModal(false)
+      setResetStep('email')
+      setResetEmail('')
+      setResetCode('')
+      setNewPassword('')
+      setConfirmPassword('')
   }
 
   // If user is already authenticated, redirect away from login/register pages
@@ -275,19 +369,82 @@ export default function Login() {
         {showResetModal && (
             <div id="forgotModal" className="modal" style={{display:'flex', position:'fixed', left:0, top:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.5)', alignItems:'center', justifyContent:'center', zIndex:9999}}>
             <div style={{background:'#fff', padding:'20px', borderRadius:'8px', width:'90%', maxWidth:'400px', color:'#000', boxShadow:'0 6px 18px rgba(0,0,0,0.2)'}}>
-                <h3 style={{marginTop:0}}>Reset password</h3>
-                <p>Enter your email and we'll send a password reset link.</p>
-                <input 
-                    type="email" 
-                    placeholder="Email" 
-                    style={{width:'100%', padding:'8px', margin:'8px 0', boxSizing:'border-box'}} 
-                    value={resetEmail}
-                    onChange={e => setResetEmail(e.target.value)}
-                />
-                <div style={{textAlign:'right', marginTop:'8px'}}>
-                <button onClick={() => setShowResetModal(false)} style={{marginRight:'8px', padding:'8px 12px'}}>Cancel</button>
-                <button onClick={handleResetPassword} style={{padding:'8px 12px'}}>Send link</button>
-                </div>
+                
+                {resetStep === 'email' && (
+                  <>
+                    <h3 style={{marginTop:0}}>Reset Password</h3>
+                    <p>Enter your email and we'll send you a 5-digit verification code.</p>
+                    <input 
+                        type="email" 
+                        placeholder="Email" 
+                        style={{width:'100%', padding:'10px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc'}} 
+                        value={resetEmail}
+                        onChange={e => setResetEmail(e.target.value)}
+                    />
+                    <div style={{textAlign:'right', marginTop:'12px'}}>
+                      <button onClick={closeResetModal} style={{marginRight:'8px', padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Cancel</button>
+                      <button onClick={handleSendResetCode} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
+                        {isResetting ? 'Sending...' : 'Send Code'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {resetStep === 'code' && (
+                  <>
+                    <h3 style={{marginTop:0}}>Enter Verification Code</h3>
+                    <p>We've sent a 5-digit code to <strong>{resetEmail}</strong></p>
+                    <input 
+                        type="text" 
+                        placeholder="Enter 5-digit code"
+                        maxLength={5}
+                        style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'24px', letterSpacing:'8px', fontWeight:'bold'}} 
+                        value={resetCode}
+                        onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    />
+                    <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 1 minute</p>
+                    <div style={{textAlign:'right', marginTop:'12px'}}>
+                      <button onClick={() => setResetStep('email')} style={{marginRight:'8px', padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Back</button>
+                      <button onClick={handleVerifyCode} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
+                        {isResetting ? 'Verifying...' : 'Verify Code'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {resetStep === 'newPassword' && (
+                  <>
+                    <h3 style={{marginTop:0}}>Set New Password</h3>
+                    <p>Enter your new password below.</p>
+                    <div style={{position:'relative'}}>
+                      <input 
+                          type={showNewPassword ? "text" : "password"}
+                          placeholder="New Password" 
+                          style={{width:'100%', padding:'10px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc'}} 
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                      />
+                      <span onClick={() => setShowNewPassword(!showNewPassword)} style={{position:'absolute', right:'10px', top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'#666'}}>
+                        <i className={`fa ${showNewPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                      </span>
+                    </div>
+                    <input 
+                        type="password" 
+                        placeholder="Confirm New Password" 
+                        style={{width:'100%', padding:'10px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc'}} 
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                    />
+                    <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Password must be at least 6 characters</p>
+                    <div style={{textAlign:'right', marginTop:'12px'}}>
+                      <button onClick={closeResetModal} style={{marginRight:'8px', padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Cancel</button>
+                      <button onClick={handleResetPassword} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
+                        {isResetting ? 'Resetting...' : 'Reset Password'}
+                      </button>
+                    </div>
+                  </>
+                )}
+
             </div>
             </div>
         )}

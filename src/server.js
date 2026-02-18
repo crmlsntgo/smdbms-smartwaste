@@ -3,6 +3,7 @@ import cors from "cors";
 import admin from "firebase-admin";
 import fs from "fs";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -32,6 +33,17 @@ admin.initializeApp({
 
 const db = admin.firestore();
 db.settings({ ignoreUndefinedProperties: true });
+
+/* ================================
+   EMAIL TRANSPORTER SETUP
+================================ */
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 /* ================================
    HEALTH CHECK
@@ -246,6 +258,168 @@ app.get("/api/v1/hazardous", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch hazardous detections" });
+  }
+});
+
+/* ================================
+   SEND PASSWORD RESET CODE
+================================ */
+app.post("/api/v1/auth/send-reset-code", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Check if user exists in Firebase Auth
+    let userRecord;
+    try {
+      userRecord = await admin.auth().getUserByEmail(email);
+    } catch (err) {
+      return res.status(404).json({ error: "No account found with this email" });
+    }
+
+    // Generate 5-digit code
+    const code = Math.floor(10000 + Math.random() * 90000).toString();
+    const expiresAt = Date.now() + 1 * 60 * 1000; // 1 minute expiry
+
+    // Store code in Firestore
+    await db.collection("password_reset_codes").doc(email).set({
+      code,
+      expiresAt,
+      attempts: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Send email
+    const mailOptions = {
+      from: `"SmartWaste" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset Code - SmartWaste',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #027a64; margin: 0;">SmartWaste</h1>
+            <p style="color: #666;">Password Reset Request</p>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 10px; text-align: center;">
+            <p style="margin: 0 0 20px 0; color: #333;">Your password reset code is:</p>
+            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #027a64; background: #fff; padding: 20px; border-radius: 8px; border: 2px dashed #027a64;">
+              ${code}
+            </div>
+            <p style="margin: 20px 0 0 0; color: #666; font-size: 14px;">This code will expire in 1 minute.</p>
+          </div>
+          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+            If you didn't request this code, please ignore this email.
+          </p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true, message: "Reset code sent to your email" });
+  } catch (err) {
+    console.error("Send reset code error:", err);
+    res.status(500).json({ error: "Failed to send reset code" });
+  }
+});
+
+/* ================================
+   VERIFY RESET CODE
+================================ */
+app.post("/api/v1/auth/verify-reset-code", async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ error: "Email and code are required" });
+    }
+
+    const docRef = db.collection("password_reset_codes").doc(email);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(400).json({ error: "No reset code found. Please request a new one." });
+    }
+
+    const data = docSnap.data();
+
+    // Check expiry
+    if (Date.now() > data.expiresAt) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Code has expired. Please request a new one." });
+    }
+
+    // Check attempts (max 5)
+    if (data.attempts >= 5) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Too many attempts. Please request a new code." });
+    }
+
+    // Verify code
+    if (data.code !== code) {
+      await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+      return res.status(400).json({ error: "Invalid code. Please try again." });
+    }
+
+    // Code is valid - mark as verified
+    await docRef.update({ verified: true });
+
+    res.json({ success: true, message: "Code verified successfully" });
+  } catch (err) {
+    console.error("Verify code error:", err);
+    res.status(500).json({ error: "Failed to verify code" });
+  }
+});
+
+/* ================================
+   RESET PASSWORD WITH CODE
+================================ */
+app.post("/api/v1/auth/reset-password", async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: "Email, code, and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const docRef = db.collection("password_reset_codes").doc(email);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(400).json({ error: "No reset code found. Please request a new one." });
+    }
+
+    const data = docSnap.data();
+
+    // Verify the code is valid and verified
+    if (data.code !== code || !data.verified) {
+      return res.status(400).json({ error: "Invalid or unverified code." });
+    }
+
+    // Check expiry
+    if (Date.now() > data.expiresAt) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Code has expired. Please request a new one." });
+    }
+
+    // Update password in Firebase Auth
+    const userRecord = await admin.auth().getUserByEmail(email);
+    await admin.auth().updateUser(userRecord.uid, { password: newPassword });
+
+    // Delete the reset code
+    await docRef.delete();
+
+    res.json({ success: true, message: "Password reset successfully" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ error: "Failed to reset password" });
   }
 });
 
