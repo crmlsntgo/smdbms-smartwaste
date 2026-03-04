@@ -1,7 +1,7 @@
 /* Pricing Page Styles */
 .pricing-main {
     padding-top: 80px; /* Space for fixed header */
-    background-color: #ffffff;
+    background-color: transparent;
     /* font-family inherited from body.landing-page (Montserrat) */
     color: #101828;
     position: relative;
@@ -11,40 +11,34 @@
 /* Hero Section */
 .pricing-hero {
     text-align: center;
-    padding: 64px 20px;
-    background-color: #f9fafb;
+    padding: 96px 20px 64px;
+    background-color: #f6fbfa;
 }
 
 .pricing-hero__label {
-    color: #00695c;
-    font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 12px;
+    color: #027a5e;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
 }
 
 .pricing-hero__title {
-    font-size: 48px;
-    line-height: 1.2;
-    font-weight: 600;
+    font-size: 56px;
+    line-height: 1.1;
+    font-weight: 700;
     color: #101828;
     margin-bottom: 24px;
 }
 
 .text-highlight {
-    color: #00695c; 
-    /* Or maybe keep it dark and use the green for accent only? 
-       In the image, "Real support..." is dark, "from real experts" is dark.
-       Wait, let's look at the image again.
-       "Real support, from real experts" is black.
-       The line underneath "Real support" is green.
-       I will stick to dark text. 
-    */
     color: #101828;
 }
 
 .pricing-hero__subtitle {
     font-size: 20px;
-    line-height: 1.5;
+    line-height: 1.6;
     color: #667085;
     max-width: 768px;
     margin: 0 auto;
@@ -52,14 +46,27 @@
 
 /* Team Grid */
 .pricing-team {
-    padding: 64px 20px;
-    background-color: #f9fafb; /* Continue hero bg? */
+    padding: 80px 20px;
+    background-color: #ffffff;
+}
+
+.team-section-title {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 700;
+    color: #002b49;
+    margin-bottom: 48px;
+}
+
+.team-section-title span {
+    border-bottom: 3px solid #027a5e;
+    padding-bottom: 4px;
 }
 
 .pricing-team__grid {
     display: flex;
     justify-content: center;
-    gap: 32px;
+    gap: 48px;
     flex-wrap: wrap;
     max-width: 1200px;
     margin: 0 auto;
@@ -67,28 +74,29 @@
 
 .team-member {
     text-align: center;
-    width: 200px;
+    width: 160px;
 }
 
 .team-member__img {
-    width: 100%;
-    aspect-ratio: 1; /* Square or slightly taller */
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
     object-fit: cover;
-    margin-bottom: 16px;
-    filter: grayscale(100%); /* Often stylised images in these templates have filter */
-    /* Wait, the image shows greyscale portraits */
+    margin: 0 auto 16px;
+    display: block;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .team-member__name {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
     color: #101828;
     margin-bottom: 4px;
 }
 
 .team-member__role {
-    font-size: 16px;
-    color: #00695c; /* Green role text */
+    font-size: 14px;
+    color: #027a5e;
     font-weight: 500;
 }
 
@@ -245,14 +253,15 @@
 }
 
 .btn-submit {
-    width: 100%;
-    background-color: #00695c;
+    display: inline-block;
+    background-color: #027a5e;
     color: white;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    text-decoration: none;
     font-weight: 600;
-    font-size: 16px;
+    transition: transform 0.2s, background-color 0.2s;
+    border: none;
     cursor: pointer;
     margin-top: 24px;
 }
@@ -502,3 +511,140 @@
         gap: 16px;
     }
 }
+
+/* Support FAQ Section */
+.support-faq {
+    padding: 80px 20px;
+    background-color: #f9fafb;
+    align-items: center;
+    text-align: center;
+}
+
+.support-faq__container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.support-faq__header {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.support-faq__label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #027a5e;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+.support-faq__label::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background-color: #027a5e;
+    border-radius: 50%;
+}
+
+.support-faq__title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #101828;
+    margin-bottom: 20px;
+    letter-spacing: -0.02em;
+}
+
+.support-faq__subtitle {
+    font-size: 1.125rem;
+    color: #475467;
+    max-width: 760px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.support-faq__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-bottom: 48px;
+    text-align: left;
+}
+
+.support-faq__card {
+    background: #ffffff;
+    border: 1px solid #eaecf0;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05); /* very light shadow initially */
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.support-faq__card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -4px rgba(16, 24, 40, 0.08), 0 4px 8px -2px rgba(16, 24, 40, 0.03);
+    border-color: #d0d5dd;
+}
+
+.support-faq__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background-color: #ecfdf3; 
+    color: #027a5e; 
+    border-radius: 10px;
+    font-size: 20px;
+    margin-bottom: 24px;
+}
+
+.support-faq__card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #101828;
+    margin-bottom: 12px;
+}
+
+.support-faq__card-desc {
+    font-size: 16px;
+    color: #475467;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.support-faq__cta {
+    background: #ffffff;
+    border: 1px solid #eaecf0;
+    border-radius: 16px;
+    padding: 24px;
+    color: #475467;
+    font-size: 16px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    margin: 0 auto;
+    font-weight: 500;
+}
+
+.support-faq__cta-link {
+    color: #027a5e;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    margin-left: 4px;
+}
+
+.support-faq__cta-link:hover {
+    color: #015c46;
+}
+
+@media (max-width: 900px) {
+    .support-faq__grid {
+        grid-template-columns: 1fr;
+    }
+}
+
