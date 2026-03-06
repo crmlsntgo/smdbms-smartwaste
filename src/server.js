@@ -277,7 +277,7 @@ app.post("/api/v1/auth/send-reset-code", async (req, res) => {
     try {
       userRecord = await admin.auth().getUserByEmail(email);
     } catch (err) {
-      return res.status(404).json({ error: "No account found with this email" });
+      return res.status(400).json({ error: "No account found with this email" });
     }
 
     // Generate 5-digit code

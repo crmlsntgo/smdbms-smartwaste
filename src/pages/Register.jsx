@@ -3,6 +3,7 @@ import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from 
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Toast from '../components/Toast'
+import '../styles/vendor/landing-page.css'
 import '../styles/vendor/register-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
 
@@ -202,27 +203,34 @@ export default function Register() {
       <div className="bg-shape1"></div> 
       <div className="bg-shape2"></div>
 
-      <div className="logo-corner">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M5 7H19V5C19 3.89543 18.1046 3 17 3H7C5.89543 3 5 3.89543 5 5V7Z"
-            stroke="white"
-            strokeWidth="2"
-          />
-          <path
-            d="M4 7H20V19C20 20.1046 19.1046 21 18 21H6C4.89543 21 4 20.1046 4 19V7Z"
-            stroke="white"
-            strokeWidth="2"
-          />
-          <line x1="9" y1="11" x2="9" y2="17" stroke="white" strokeWidth="2" />
-          <line x1="15" y1="11" x2="15" y2="17" stroke="white" strokeWidth="2" />
-        </svg>
-        <div className="corner-text">
-          <span className="smart">SMART</span>
-          <span className="dustbin">DUSTBIN</span>
+      {/* Landing Nav Header */}
+      <header className="landing-nav" style={{ position: 'sticky', top: 0, width: '100%', flexShrink: 0, zIndex: 1000 }}>
+        <div className="landing-nav__container">
+          <a href="/" className="landing-nav__logo">
+            <div className="landing-nav__logo-icon">
+              <i className="fas fa-trash"></i>
+            </div>
+            <div className="landing-nav__logo-text">
+              <span className="landing-nav__logo-title">SMART</span>
+              <span className="landing-nav__logo-subtitle">DUSTBIN</span>
+            </div>
+          </a>
+          <nav className="landing-nav__menu">
+            <a href="/product" className="landing-nav__link">Product</a>
+            <a href="/support" className="landing-nav__link">Support</a>
+            <a href="/solutions" className="landing-nav__link">Solutions</a>
+          </nav>
+          <div className="landing-nav__actions">
+            <a href="/login" className="landing-nav__signin">Sign in</a>
+            <a href="/register" className="landing-nav__demo">Request Demo</a>
+          </div>
+          <button className="landing-nav__mobile-toggle" id="mobileMenuToggle">
+            <i className="fas fa-bars"></i>
+          </button>
         </div>
-      </div>
+      </header>
 
+      <div className="login-scroll-area">
       <div className="login-container">
         <div className="logo-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -344,6 +352,7 @@ export default function Register() {
         </form>
 
         <p className="signin-text"> Already have an account? <a href="/login" className="signin-link"> <u>Sign In</u></a></p>
+      </div>
       </div>
     </div>
   )

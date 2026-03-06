@@ -153,17 +153,26 @@
     .login-body {
   position: relative;
   z-index: 0;
-  overflow: hidden;                                                                                        
+  overflow: hidden;
   background: linear-gradient(135deg, #058b6e 0%, #027a64 50%, #025a47 100%);
   height: 100vh;
   width: 100vw;
-  min-height: 100vh;
-  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+    /* Scrollable content area below the sticky header */
+    .login-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   justify-content: center;
-  align-items: center;
-  /* Prevent any scrolling */
-  overscroll-behavior: none;
+  align-items: flex-start;
+  padding: 30px 20px;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
 }
 
 /* html, body {

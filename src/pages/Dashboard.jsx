@@ -24,7 +24,6 @@ function normalizeBin(docSnap) {
   const name = data.name || data.binName || id
   const rawConn = data.connectivity || data.sensorStatus || 'disconnected'
   const connectivity = rawConn.charAt(0).toUpperCase() + rawConn.slice(1)
-  const battery = Number(data.battery) || Number(data.battery_level) || 0
 
   const wc = data.waste_composition || {}
   const recyclable   = Number(wc.recyclable) || 0
@@ -63,7 +62,7 @@ function normalizeBin(docSnap) {
 
   return {
     id, name, location, status, connectivity,
-    battery, battery_level: battery, fill_level, general_waste, capacity,
+    fill_level, general_waste, capacity,
     waste_composition: { recyclable, biodegradable, non_biodegradable },
     fill_rate,
     lastEmptiedAt,
@@ -288,11 +287,6 @@ export default function Dashboard() {
       return '#4caf50'
   }
 
-  const getBatteryLevel = (bin) => {
-      if (!bin) return 85
-      return bin.battery_level || bin.battery || 85
-  }
-
   return (
     <div>
       <Header />
@@ -455,18 +449,6 @@ export default function Dashboard() {
                                     <h4 style={{marginBottom:'15px', fontWeight:'700'}}>Bin Status</h4>
                                 </div>
                                 <div className="b-stat-group">
-                                    <h4><i className="fas fa-battery-three-quarters"></i> Battery</h4>
-                                    <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                        <div className="batt-bar">
-                                            <div className="batt-fill" style={{
-                                                width: `${getBatteryLevel(binDetail)}%`,
-                                                background: getBatteryLevel(binDetail) > 20 ? '#4caf50' : '#f44336'
-                                            }}></div>
-                                        </div>
-                                        <span style={{fontSize:'12px', fontWeight:'600'}}>{getBatteryLevel(binDetail)}%</span>
-                                    </div>
-                                </div>
-                                <div className="b-stat-group">
                                     <h4><i className="fas fa-wifi"></i> Connectivity</h4>
                                     <span className="conn-sig">
                                         <i className="fas fa-signal"></i> {binDetail?.connectivity || 'Strong signal'}
@@ -512,8 +494,7 @@ export default function Dashboard() {
                                             <span className="ab-val">{bin.fill_level || 0}%</span>
                                         </div>
                                         <div className="ab-conn">
-                                            <i className="fas fa-battery-three-quarters" style={{color: '#4caf50'}}></i> {getBatteryLevel(bin)}%
-                                            <i className="fas fa-wifi" style={{color: '#4caf50', marginLeft: '8px'}}></i>
+                                            <i className="fas fa-wifi" style={{color: '#4caf50'}}></i>
                                         </div>
                                     </div>
                                     <a href="#" className="ab-details-link" onClick={(e) => { e.preventDefault(); setBinDetail(bin); setViewAllBins(false); }}>Details <i className="fas fa-arrow-right"></i></a>
