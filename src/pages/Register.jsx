@@ -151,11 +151,15 @@ export default function Register() {
          console.warn('Error saving username map:', usernameError)
       }
 
-      alert('Account created successfully. Please login with your credentials.')
+      // alert('Account created successfully. Please login with your credentials.')
+      setToast({ show: true, message: 'Account created successfully. Redirecting to login...', type: 'success' })
 
       // Sign out immediately so user has to log in again
       try { await signOut(auth) } catch (e) { console.warn('Sign out failed', e) }
-      window.location.href = '/login'
+      
+      setTimeout(() => {
+          window.location.href = '/login'
+      }, 2000)
 
     } catch (error) {
       setIsRegistering(false)
@@ -182,7 +186,7 @@ export default function Register() {
           setPasswordError(false)
           setEmailError(false)
       }
-      alert(errorMessage)
+      setToast({ show: true, message: errorMessage, type: 'error' })
     }
   }
 
@@ -254,10 +258,15 @@ export default function Register() {
               type="text"
               className="input-field"
               placeholder="FIRST NAME"
+              maxLength="35"
               required
               style={{ flex: 1 }}
               value={firstName}
               onChange={e => {
+                if (e.target.value.length > 35) {
+                  setToast({ show: true, message: 'First name cannot exceed 35 characters.', type: 'error' })
+                  return
+                }
                 if (/^[a-zA-Z\s]*$/.test(e.target.value)) setFirstName(e.target.value)
               }}
             />
@@ -265,10 +274,15 @@ export default function Register() {
               type="text"
               className="input-field"
               placeholder="LAST NAME"
+              maxLength="35"
               required
               style={{ flex: 1 }}
               value={lastName}
               onChange={e => {
+                if (e.target.value.length > 35) {
+                  setToast({ show: true, message: 'Last name cannot exceed 35 characters.', type: 'error' })
+                  return
+                }
                 if (/^[a-zA-Z\s]*$/.test(e.target.value)) setLastName(e.target.value)
               }}
             />
@@ -277,9 +291,14 @@ export default function Register() {
             type="email"
             className={`input-field ${emailError ? 'error' : ''}`}
             placeholder="EMAIL"
+            maxLength="254"
             required
             value={email}
             onChange={e => {
+              if (e.target.value.length > 254) {
+                setToast({ show: true, message: 'Email cannot exceed 254 characters.', type: 'error' })
+                return
+              }
               setEmail(e.target.value)
               setEmailError(false)
             }}
