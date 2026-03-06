@@ -3,77 +3,63 @@ import '../styles/components/landing-footer.css';
 
 const LandingFooter = () => {
   return (
-    <footer className="sw-footer">
-      <div className="sw-footer__content">
+    <footer className='sw-landing-footer'>
+      <div className='sw-landing-footer__content'>
         
-        {/* Top Section: Logo */}
-        <div className="sw-footer__logo-section">
-            <a href="#" className="sw-footer__logo">
-              <i className="fas fa-trash-alt"></i>
-              <span>SmartWaste</span>
-            </a>
+        {/* Left Section: Brand */} 
+        <div className='sw-landing-footer__brand'>
+            <div className='sw-landing-footer__logo'>
+                <div className='sw-landing-footer__logo-icon'>
+                    <i className="fas fa-trash"></i>
+                </div>
+                <div className='sw-landing-footer__logo-text'>
+                    <span className='text-green'>SMART</span>
+                    <span className='text-white'>DUSTBIN</span>
+                </div>
+            </div>
+            <p className='sw-landing-footer__tagline'>
+                Innovative IoT-based waste management solutions for smarter communities.
+            </p>
+            <div className='sw-landing-footer__socials'>
+                <a href='#'><i className='fab fa-facebook-f'></i></a>
+                <a href='#'><i className='fab fa-twitter'></i></a>
+                <a href='#'><i className='fab fa-instagram'></i></a>
+                <a href='#'><i className='fab fa-linkedin-in'></i></a>
+            </div>
+            <p className='sw-landing-footer__copyright'>
+                &copy; 2025 Smart Dustbin. All rights reserved.
+            </p>
         </div>
 
-        {/* Middle Section: Links & Newsletter */}
-        <div className="sw-footer__middle">
-          
-          <div className="sw-footer__links">
-            <div className="sw-footer__col">
-              <a href="#" className="sw-footer__head-link">Solutions</a>
-            </div>
-            <div className="sw-footer__col">
-              <a href="#" className="sw-footer__head-link">All Products</a>
-            </div>
-            <div className="sw-footer__col">
-              <h4 className="sw-footer__heading">About SmartWaste</h4>
-              <ul>
-                <li><a href="#">Careers</a></li>
-                <li><a href="#">SmartWaste Worldwide</a></li>
-              </ul>
-            </div>
-            <div className="sw-footer__col">
-              <h4 className="sw-footer__heading">All Downloads</h4>
-              <ul>
-                <li><a href="#">Company Brochure</a></li>
-                <li><a href="#">Suite of Bins</a></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="sw-footer__newsletter">
-             <h4 className="sw-footer__newsletter-title">Subscribe to our Newsletter</h4>
-             <p className="sw-footer__newsletter-text">Stay up to date on the latest SmartWaste news, announcements, and product launches.</p>
-             <form className="sw-footer__form" onSubmit={(e) => e.preventDefault()}>
-                <input type="email" placeholder="Email*" required />
-                <button type="submit">Subscribe</button>
-             </form>
-          </div>
+        {/* Middle Section: Newsletter */} 
+        <div className='sw-landing-footer__newsletter'>
+            <h3>Subscribe to our Newsletter</h3>
+            <p>Stay up to date on the latest SmartWaste news, announcements, and product launches.</p>
+            <form className='sw-landing-footer__form' onSubmit={(e) => e.preventDefault()}>
+                <input type='email' placeholder='Email*' required />
+                <button type='submit'>Subscribe</button>
+            </form>
         </div>
 
-        {/* Bottom Contact Section */}
-        <div className="sw-footer__contact-section">
-             <div className="sw-footer__address">
-                <p>150 Innovation Street | Suite 103 Green City, GC 02494 | USA</p>
-                <p><strong>Phone:</strong> +1-888-820-0300</p>
-                <p><strong>Email:</strong> info@smartwaste.com</p>
-             </div>
-             
-             <div className="sw-footer__social">
-                <a href="#" aria-label="Facebook"><i className="fab fa-facebook-f"></i></a>
-                <a href="#" aria-label="Twitter"><i className="fab fa-twitter"></i></a>
-                <a href="#" aria-label="LinkedIn"><i className="fab fa-linkedin-in"></i></a>
-                <a href="#" aria-label="YouTube"><i className="fab fa-youtube"></i></a>
-                <a href="https://www.instagram.com/smartwaste" aria-label="Instagram"><i className="fab fa-instagram"></i></a>
-             </div>
+        {/* Right Section: Links */} 
+        <div className='sw-landing-footer__links'>
+            <div className='sw-landing-footer__col'>
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href='/'>Home</a></li>
+                    <li><a href='/#features'>Features</a></li>
+                    <li><a href='/support#contact'>Support</a></li>
+                </ul>
+            </div>
+            <div className='sw-landing-footer__col'>
+                <h4>Contact Us</h4>
+                <ul className='contact-info'>
+                    <li><i className='fas fa-map-marker-alt'></i> 123 Sarany Street, Tech City, 8700</li>
+                    <li><i className='fas fa-phone-alt'></i> (+63)991 540 8198</li>
+                    <li><i className='fas fa-envelope'></i> smdbms@smartdustbin.com</li>
+                </ul>
+            </div>
         </div>
-
-        {/* Legal Links (Bottom) */}
-        <div className="sw-footer__legal">
-           <a href="#">Patents</a>
-           <a href="#">Privacy Policy</a>
-           <a href="#">Cookie Policy</a>
-        </div>
-
       </div>
     </footer>
   );

@@ -32,9 +32,9 @@ export default function Landing() {
                 </div>
             </a>
             <nav className="landing-nav__menu">
-                <a href="#" className="landing-nav__link">Product</a>
+                <a href="/product" className="landing-nav__link">Product</a>
                 <a href="/support" className="landing-nav__link">Support</a>
-                <a href="#" className="landing-nav__link">Services</a>
+                <a href="/solutions" className="landing-nav__link">Solutions</a>
             </nav>
             <div className="landing-nav__actions">
                 <a href="/login" className="landing-nav__signin">Sign in</a>
@@ -92,7 +92,7 @@ export default function Landing() {
       <div className="hero-visual">
          {/* This represents the dashboard screenshot from the design */}
          <div className="dashboard-preview-card">
-             <img src="https://placehold.co/800x500/e0f2f1/00695c?text=Dashboard+Preview" alt="Smart Waste Dashboard" className="hero-img" />
+             <img src="https://image2url.com/r2/default/images/1771436771075-d5ea55b7-21f5-4910-99f3-477bd8faa6e3.png" alt="Smart Waste Dashboard" className="hero-img" />
              
              {/* Floating Badges (auto-swap while moving) */}
              <div className="floating-badge-wrapper" aria-hidden="false">
