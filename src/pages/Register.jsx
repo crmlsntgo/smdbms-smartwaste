@@ -438,7 +438,7 @@ export default function Register() {
               type="text"
               placeholder="Enter 6-digit code"
               maxLength={6}
-              style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'24px', letterSpacing:'8px', fontWeight:'bold'}}
+              style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'16px', letterSpacing:'8px', fontWeight:'bold'}}
               value={verifyCode}
               onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             />
