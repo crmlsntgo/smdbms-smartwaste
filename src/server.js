@@ -2,16 +2,73 @@ import express from "express";
 import cors from "cors";
 import admin from "firebase-admin";
 import fs from "fs";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+/* ================================
+   CORS — allow only known origins
+================================ */
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  .split(',').map(o => o.trim());
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. same-origin, mobile, curl in dev)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS policy: origin ${origin} is not allowed`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+app.use(express.json({ limit: '10kb' }));
+
+/* ================================
+   RATE LIMITERS
+================================ */
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again in 15 minutes.' }
+});
+
+const sensorRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // up to 2 posts/sec per IP — sufficient for ESP32 devices
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many sensor updates. Please slow down.' }
+});
+
+/* ================================
+   AUTH MIDDLEWARE
+   Verifies Firebase ID token on protected routes.
+================================ */
+async function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: missing token' });
+  }
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized: invalid or expired token' });
+  }
+}
 
 /* ================================
    FIREBASE INIT
@@ -53,23 +110,24 @@ app.get("/", (req, res) => {
 });
 
 /* ================================
-   ESP32 TEST ENDPOINT
+   ESP32 TEST ENDPOINT (dev only)
 ================================ */
 app.post("/api/test-esp32", (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
   console.log("📡 ESP32 HIT SERVER");
   console.log("📦 BODY:", req.body);
-
   res.json({
     success: true,
     message: "ESP32 connected successfully",
-    received: req.body,
   });
 });
 
 /* ================================
    REGISTER BIN
 ================================ */
-app.post("/api/v1/bins/register", async (req, res) => {
+app.post("/api/v1/bins/register", verifyToken, async (req, res) => {
   try {
     const { bin_id, location, name } = req.body;
 
@@ -96,7 +154,7 @@ app.post("/api/v1/bins/register", async (req, res) => {
 /* ================================
    SEND SENSOR DATA → BINS & HAZARDOUS
 ================================ */
-app.post("/api/v1/bins/:bin_id", async (req, res) => {
+app.post("/api/v1/bins/:bin_id", sensorRateLimiter, async (req, res) => {
   try {
     const { bin_id } = req.params;
 
@@ -114,8 +172,26 @@ app.post("/api/v1/bins/:bin_id", async (req, res) => {
       detected_at
     } = req.body;
 
-    // Calculate aggregated fill level from 4 waste types
+    // Validate numeric sensor fields
     const wc = waste_composition || {};
+    const numericFields = [
+      ['distance_cm', distance_cm],
+      ['battery', battery],
+      ['general_waste', general_waste],
+      ['waste_composition.recyclable', wc.recyclable],
+      ['waste_composition.biodegradable', wc.biodegradable],
+      ['waste_composition.non_biodegradable', wc.non_biodegradable]
+    ];
+    for (const [field, val] of numericFields) {
+      if (val !== undefined) {
+        const num = Number(val);
+        if (isNaN(num) || num < 0 || num > 10000) {
+          return res.status(400).json({ error: `Invalid value for ${field}` });
+        }
+      }
+    }
+
+    // Calculate aggregated fill level from 4 waste types
     const vRec = Number(wc.recyclable) || 0;
     const vBio = Number(wc.biodegradable) || 0;
     const vNon = Number(wc.non_biodegradable || wc.nonBio) || 0;
@@ -208,7 +284,7 @@ app.post("/api/v1/bins/:bin_id", async (req, res) => {
 /* ================================
    GET ALL BINS
 ================================ */
-app.get("/api/v1/bins", async (req, res) => {
+app.get("/api/v1/bins", verifyToken, async (req, res) => {
   try {
     const snapshot = await db.collection("bins").get();
     const data = snapshot.docs.map(doc => doc.data());
@@ -221,7 +297,7 @@ app.get("/api/v1/bins", async (req, res) => {
 /* ================================
    GET SINGLE BIN
 ================================ */
-app.get("/api/v1/bins/:bin_id", async (req, res) => {
+app.get("/api/v1/bins/:bin_id", verifyToken, async (req, res) => {
   try {
     const docSnap = await db
       .collection("bins")
@@ -241,7 +317,7 @@ app.get("/api/v1/bins/:bin_id", async (req, res) => {
 /* ================================
    GET ALL HAZARDOUS DETECTIONS
 ================================ */
-app.get("/api/v1/hazardous", async (req, res) => {
+app.get("/api/v1/hazardous", verifyToken, async (req, res) => {
   try {
     const snapshot = await db
       .collection("hazardous_detections")
@@ -262,9 +338,32 @@ app.get("/api/v1/hazardous", async (req, res) => {
 });
 
 /* ================================
+   RESOLVE USERNAME → EMAIL (pre-auth, rate-limited)
+   Used for username-based login before Firebase auth.
+================================ */
+app.post("/api/v1/auth/resolve-username", authRateLimiter, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || typeof username !== 'string' || username.length > 100) {
+      return res.status(400).json({ error: "Invalid username" });
+    }
+    const snap = await db.collection("usernames").doc(username.trim()).get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    // Return only the email — do not expose uid
+    const { email } = snap.data();
+    return res.json({ email });
+  } catch (err) {
+    console.error("Resolve username error:", err);
+    res.status(500).json({ error: "Failed to resolve username" });
+  }
+});
+
+/* ================================
    SEND PASSWORD RESET CODE
 ================================ */
-app.post("/api/v1/auth/send-reset-code", async (req, res) => {
+app.post("/api/v1/auth/send-reset-code", authRateLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -280,9 +379,9 @@ app.post("/api/v1/auth/send-reset-code", async (req, res) => {
       return res.status(400).json({ error: "No account found with this email" });
     }
 
-    // Generate 5-digit code
-    const code = Math.floor(10000 + Math.random() * 90000).toString();
-    const expiresAt = Date.now() + 1 * 60 * 1000; // 1 minute expiry
+    // Generate cryptographically random 6-digit code
+    const code = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minute expiry
 
     // Store code in Firestore
     await db.collection("password_reset_codes").doc(email).set({
@@ -308,7 +407,7 @@ app.post("/api/v1/auth/send-reset-code", async (req, res) => {
             <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #027a64; background: #fff; padding: 20px; border-radius: 8px; border: 2px dashed #027a64;">
               ${code}
             </div>
-            <p style="margin: 20px 0 0 0; color: #666; font-size: 14px;">This code will expire in 1 minute.</p>
+            <p style="margin: 20px 0 0 0; color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
           </div>
           <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
             If you didn't request this code, please ignore this email.
@@ -329,7 +428,7 @@ app.post("/api/v1/auth/send-reset-code", async (req, res) => {
 /* ================================
    VERIFY RESET CODE
 ================================ */
-app.post("/api/v1/auth/verify-reset-code", async (req, res) => {
+app.post("/api/v1/auth/verify-reset-code", authRateLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
 
@@ -377,7 +476,7 @@ app.post("/api/v1/auth/verify-reset-code", async (req, res) => {
 /* ================================
    RESET PASSWORD WITH CODE
 ================================ */
-app.post("/api/v1/auth/reset-password", async (req, res) => {
+app.post("/api/v1/auth/reset-password", authRateLimiter, async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
 
@@ -385,8 +484,8 @@ app.post("/api/v1/auth/reset-password", async (req, res) => {
       return res.status(400).json({ error: "Email, code, and new password are required" });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
     const docRef = db.collection("password_reset_codes").doc(email);
@@ -420,6 +519,117 @@ app.post("/api/v1/auth/reset-password", async (req, res) => {
   } catch (err) {
     console.error("Reset password error:", err);
     res.status(500).json({ error: "Failed to reset password" });
+  }
+});
+
+/* ================================
+   SEND EMAIL VERIFICATION CODE (Registration)
+================================ */
+app.post("/api/v1/auth/send-verification-code", authRateLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Check that this email is not already registered
+    try {
+      await admin.auth().getUserByEmail(email);
+      return res.status(400).json({ error: "This email is already registered. Please sign in instead." });
+    } catch (err) {
+      // Expected: user does not exist yet — proceed
+      if (err.code !== "auth/user-not-found") {
+        throw err;
+      }
+    }
+
+    // Generate cryptographically random 6-digit code
+    const code = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await db.collection("email_verification_codes").doc(email).set({
+      code,
+      expiresAt,
+      attempts: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    const mailOptions = {
+      from: `"SmartWaste" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Email Verification Code - SmartWaste',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #027a64; margin: 0;">SmartWaste</h1>
+            <p style="color: #666;">Account Registration — Email Verification</p>
+          </div>
+          <div style="background: #f9f9f9; padding: 30px; border-radius: 10px; text-align: center;">
+            <p style="margin: 0 0 20px 0; color: #333;">Your email verification code is:</p>
+            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #027a64; background: #fff; padding: 20px; border-radius: 8px; border: 2px dashed #027a64;">
+              ${code}
+            </div>
+            <p style="margin: 20px 0 0 0; color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
+          </div>
+          <p style="color: #999; font-size: 12px; text-align: center; margin-top: 30px;">
+            If you didn't request this code, please ignore this email.
+          </p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true, message: "Verification code sent to your email" });
+  } catch (err) {
+    console.error("Send verification code error:", err);
+    res.status(500).json({ error: "Failed to send verification code" });
+  }
+});
+
+/* ================================
+   VERIFY REGISTRATION CODE
+================================ */
+app.post("/api/v1/auth/verify-registration-code", authRateLimiter, async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ error: "Email and code are required" });
+    }
+
+    const docRef = db.collection("email_verification_codes").doc(email);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(400).json({ error: "No verification code found. Please request a new one." });
+    }
+
+    const data = docSnap.data();
+
+    if (Date.now() > data.expiresAt) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Code has expired. Please request a new one." });
+    }
+
+    if (data.attempts >= 5) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Too many attempts. Please request a new code." });
+    }
+
+    if (data.code !== code) {
+      await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+      return res.status(400).json({ error: "Invalid code. Please try again." });
+    }
+
+    // Code is valid — delete it so it cannot be reused
+    await docRef.delete();
+
+    res.json({ success: true, message: "Email verified successfully" });
+  } catch (err) {
+    console.error("Verify registration code error:", err);
+    res.status(500).json({ error: "Failed to verify code" });
   }
 });
 

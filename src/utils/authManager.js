@@ -1,6 +1,6 @@
 import initFirebase from '../firebaseConfig'
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
+import { getFirestore, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore'
 
 import * as presenceModule from './presence'
 
@@ -34,9 +34,18 @@ export async function preventMultipleLogins(user) {
   try {
     const sessionDoc = await getDoc(sessionDocRef);
     if (sessionDoc.exists()) {
-      // Redirect to the active session
+      // Determine the correct dashboard for this user's role before redirecting
+      let role = null;
+      try { role = window.localStorage.getItem('sb_role') } catch (e) {}
+      if (!role) {
+        try {
+          const userSnap = await getDoc(doc(_db, 'users', user.uid));
+          if (userSnap.exists()) role = userSnap.data().role;
+        } catch (e) {}
+      }
+      const target = (role || '').toLowerCase() === 'admin' ? '/admin/dashboard' : '/dashboard';
       alert('You are already logged in on another device. Redirecting to your active session.');
-      window.location.href = '/dashboard';
+      window.location.href = target;
       return;
     }
 
@@ -142,6 +151,17 @@ export async function performLogout() {
       _presenceHandle = null
     }
   } catch (e) {}
+
+  // Clean up the active session document so the user can log in again
+  try {
+    const auth = getAuth(getApp())
+    if (auth.currentUser) {
+      const db = getFirestore(getApp())
+      await deleteDoc(doc(db, 'activeSessions', auth.currentUser.uid))
+    }
+  } catch (e) {
+    console.warn('performLogout: failed to delete activeSessions doc', e)
+  }
 
   try {
     const auth = getAuth(getApp())

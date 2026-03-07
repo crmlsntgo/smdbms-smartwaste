@@ -4,8 +4,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
    match /dashboard/{document=**} {
-      allow read: if true;
-      allow write: if true;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
     }
 
     function isSignedIn() {
@@ -34,7 +34,7 @@ service cloud.firestore {
 
     // Usernames (identifier -> uid mapping)
     match /usernames/{identifier} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.email == request.auth.token.email;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
       allow delete: if isSignedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
@@ -112,6 +112,17 @@ service cloud.firestore {
       // Allow users to create/write their own archive record
       allow create, update: if isSignedIn() && request.auth.uid == userId;
       allow read, delete: if isSignedIn() && isAdmin();
+    }
+
+    // Active Sessions (used for multiple-login detection)
+    match /activeSessions/{userId} {
+      allow read, write, delete: if isSignedIn() && request.auth.uid == userId;
+      allow read, delete: if isSignedIn() && isAdmin();
+    }
+
+    // Password Reset Codes (written only by server-side admin SDK, never by clients)
+    match /password_reset_codes/{email} {
+      allow read, write: if false; // admin SDK bypasses rules
     }
 
     // Notifications collection (for fill-level alerts and system notifications)

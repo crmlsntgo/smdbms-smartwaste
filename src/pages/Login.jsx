@@ -20,7 +20,7 @@ export default function Login() {
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
   
-  // States for 5-digit code flow
+  // States for 6-digit code flow
   const [resetStep, setResetStep] = useState('email') // 'email', 'code', 'newPassword'
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -37,15 +37,32 @@ export default function Login() {
       const db = getFirestore(app)
       let resolvedEmail = email
 
-      // Check if email is actually username
+      // Check if email is actually username — use server endpoint to avoid
+      // exposing the usernames collection to unauthenticated Firestore reads
       if (!email.includes('@')) {
-        const uname = await getDoc(doc(db, 'usernames', email))
-        if (!uname.exists()) {
-             alert('User not found')
-             setIsLoggingIn(false)
-             return
+        try {
+          const resp = await fetch(`${API_URL}/api/v1/auth/resolve-username`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: email })
+          })
+          if (!resp.ok) {
+            alert('User not found')
+            setIsLoggingIn(false)
+            return
+          }
+          const data = await resp.json()
+          resolvedEmail = data.email
+        } catch (fetchErr) {
+          // Fallback: direct Firestore lookup if server is unreachable
+          const uname = await getDoc(doc(db, 'usernames', email))
+          if (!uname.exists()) {
+            alert('User not found')
+            setIsLoggingIn(false)
+            return
+          }
+          resolvedEmail = uname.data().email
         }
-        resolvedEmail = uname.data().email
       }
 
       const cred = await signInWithEmailAndPassword(auth, resolvedEmail, password)
@@ -134,7 +151,7 @@ export default function Login() {
     }
   }
 
-  // Send 5-digit code to email
+  // Send 6-digit code to email
   const handleSendResetCode = async () => {
       if(!resetEmail) {
           alert('Please enter your email')
@@ -155,7 +172,7 @@ export default function Login() {
             return
           }
           
-          alert('A 5-digit code has been sent to your email!')
+          alert('A 6-digit code has been sent to your email!')
           setResetStep('code')
       } catch (error) {
           alert('Error: ' + error.message)
@@ -163,10 +180,10 @@ export default function Login() {
       setIsResetting(false)
   }
 
-  // Verify the 5-digit code
+  // Verify the 6-digit code
   const handleVerifyCode = async () => {
-      if(!resetCode || resetCode.length !== 5) {
-          alert('Please enter the 5-digit code')
+      if(!resetCode || resetCode.length !== 6) {
+          alert('Please enter the 6-digit code')
           return
       }
       setIsResetting(true)
@@ -382,7 +399,7 @@ export default function Login() {
                 {resetStep === 'email' && (
                   <>
                     <h3 style={{marginTop:0}}>Reset Password</h3>
-                    <p>Enter your email and we'll send you a 5-digit verification code.</p>
+                    <p>Enter your email and we'll send you a 6-digit verification code.</p>
                     <input 
                         type="email" 
                         placeholder="Email" 
@@ -402,14 +419,14 @@ export default function Login() {
                 {resetStep === 'code' && (
                   <>
                     <h3 style={{marginTop:0}}>Enter Verification Code</h3>
-                    <p>We've sent a 5-digit code to <strong>{resetEmail}</strong></p>
+                    <p>We've sent a 6-digit code to <strong>{resetEmail}</strong></p>
                     <input 
                         type="text" 
-                        placeholder="Enter 5-digit code"
-                        maxLength={5}
+                        placeholder="Enter 6-digit code"
+                        maxLength={6}
                         style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'24px', letterSpacing:'8px', fontWeight:'bold'}} 
                         value={resetCode}
-                        onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                        onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     />
                     <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 1 minute</p>
                     <div style={{textAlign:'right', marginTop:'12px'}}>

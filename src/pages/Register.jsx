@@ -7,6 +7,9 @@ import '../styles/vendor/landing-page.css'
 import '../styles/vendor/register-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
 
+// API base URL — adjust for production
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export default function Register() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -19,6 +22,12 @@ export default function Register() {
   const [emailError, setEmailError] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', type: '' })
   const [isRegistering, setIsRegistering] = useState(false)
+
+  // Email verification modal states
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  const [verifyCode, setVerifyCode] = useState('')
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
 
   // Redirect away from auth pages if already authenticated
   useEffect(() => {
@@ -106,7 +115,65 @@ export default function Register() {
         return
     }
 
+    // Send a 6-digit verification code to the email before creating the account
+    setIsSendingCode(true)
+    try {
+      const response = await fetch(`${API_URL}/api/v1/auth/send-verification-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const rawText = await response.text()
+      let data = {}
+      try { data = JSON.parse(rawText) } catch (_) {}
+      if (!response.ok) {
+        if (data.error && data.error.toLowerCase().includes('already registered')) {
+          setEmailError(true)
+        }
+        setToast({ show: true, message: data.error || 'Failed to send verification code. Please try again.', type: 'error' })
+        setIsSendingCode(false)
+        return
+      }
+      setVerifyCode('')
+      setShowVerifyModal(true)
+    } catch (err) {
+      setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
+    }
+    setIsSendingCode(false)
+  }
+
+  // Called after the user enters the correct verification code
+  const handleVerifyAndRegister = async () => {
+    if (!verifyCode || verifyCode.length !== 6) {
+      setToast({ show: true, message: 'Please enter the 6-digit verification code.', type: 'error' })
+      return
+    }
+
+    setIsVerifying(true)
+    try {
+      const verifyResponse = await fetch(`${API_URL}/api/v1/auth/verify-registration-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verifyCode })
+      })
+      const verifyRaw = await verifyResponse.text()
+      let verifyData = {}
+      try { verifyData = JSON.parse(verifyRaw) } catch (_) {}
+      if (!verifyResponse.ok) {
+        setToast({ show: true, message: verifyData.error || 'Invalid verification code. Please try again.', type: 'error' })
+        setIsVerifying(false)
+        return
+      }
+    } catch (err) {
+      setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
+      setIsVerifying(false)
+      return
+    }
+
+    // Code verified — proceed to create the account
+    setShowVerifyModal(false)
     setIsRegistering(true)
+    setIsVerifying(false)
 
     try {
       const app = initFirebase()
@@ -125,9 +192,6 @@ export default function Register() {
         console.warn('Failed to set displayName:', updErr)
       }
 
-      // Explicitly set the document with merge: true to avoid overwriting if somehow exists, 
-      // but primarily to ensure fields are set correctly.
-      // We await the user doc creation BEFORE redirecting
       const userRef = doc(db, 'users', userCredential.user.uid)
       await setDoc(userRef, {
         firstName: firstName,
@@ -138,9 +202,9 @@ export default function Register() {
         role: role,
         createdAt: new Date().toISOString(),
       }, { merge: true })
-      
+
       console.log("User document created successfully")
-      
+
       // Also save to usernames collection for username login support
       try {
         await setDoc(doc(db, 'usernames', identifier), {
@@ -149,17 +213,16 @@ export default function Register() {
           createdAt: new Date().toISOString(),
         })
       } catch (usernameError) {
-         console.warn('Error saving username map:', usernameError)
+        console.warn('Error saving username map:', usernameError)
       }
 
-      // alert('Account created successfully. Please login with your credentials.')
       setToast({ show: true, message: 'Account created successfully. Redirecting to login...', type: 'success' })
 
-      // Sign out immediately so user has to log in again
+      // Sign out immediately so the user must log in explicitly
       try { await signOut(auth) } catch (e) { console.warn('Sign out failed', e) }
-      
+
       setTimeout(() => {
-          window.location.href = '/login'
+        window.location.href = '/login'
       }, 2000)
 
     } catch (error) {
@@ -168,7 +231,7 @@ export default function Register() {
       let errorMessage = 'Registration failed: '
       switch (error.code) {
         case 'auth/email-already-in-use':
-          errorMessage = 'This email is already registered. Please use a different email or login.'
+          errorMessage = 'This email is already registered. Please use a different email or log in.'
           setEmailError(true)
           setPasswordError(false)
           break
@@ -346,14 +409,82 @@ export default function Register() {
             </span>
           </div>
 
-          <button id="submit" type="submit" className="signup-btn" disabled={isRegistering}>
-            {isRegistering ? 'SIGNING UP...' : 'SIGN UP'}
+          <button id="submit" type="submit" className="signup-btn" disabled={isRegistering || isSendingCode}>
+            {isRegistering ? 'SIGNING UP...' : isSendingCode ? 'SENDING CODE...' : 'SIGN UP'}
           </button>
         </form>
 
         <p className="signin-text"> Already have an account? <a href="/login" className="signin-link"> <u>Sign In</u></a></p>
       </div>
       </div>
+
+      {/* Email Verification Modal */}
+      {showVerifyModal && (
+        <div style={{display:'flex', position:'fixed', left:0, top:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.5)', alignItems:'center', justifyContent:'center', zIndex:9999}}>
+          <div style={{background:'#fff', padding:'20px', borderRadius:'8px', width:'90%', maxWidth:'400px', color:'#000', boxShadow:'0 6px 18px rgba(0,0,0,0.2)'}}>
+            <h3 style={{marginTop:0}}>Verify Your Email</h3>
+            <p>We've sent a 6-digit code to <strong>{email}</strong>. Enter it below to complete your registration.</p>
+            <input
+              type="text"
+              placeholder="Enter 6-digit code"
+              maxLength={6}
+              style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'24px', letterSpacing:'8px', fontWeight:'bold'}}
+              value={verifyCode}
+              onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            />
+            <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 10 minutes. Check your spam folder if you don't see it.</p>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'12px'}}>
+              <button
+                onClick={() => {
+                  setShowVerifyModal(false)
+                  setVerifyCode('')
+                }}
+                style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}
+                disabled={isVerifying}
+              >
+                Cancel
+              </button>
+              <div style={{display:'flex', gap:'8px'}}>
+                <button
+                  onClick={async () => {
+                    setIsSendingCode(true)
+                    try {
+                      const r = await fetch(`${API_URL}/api/v1/auth/send-verification-code`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                      })
+                      const rRaw = await r.text()
+                      let d = {}
+                      try { d = JSON.parse(rRaw) } catch (_) {}
+                      if (!r.ok) {
+                        setToast({ show: true, message: d.error || 'Failed to resend code. Please try again.', type: 'error' })
+                      } else {
+                        setVerifyCode('')
+                        setToast({ show: true, message: 'A new code has been sent to your email.', type: 'success' })
+                      }
+                    } catch (err) {
+                      setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
+                    }
+                    setIsSendingCode(false)
+                  }}
+                  disabled={isSendingCode || isVerifying}
+                  style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #027a64', background:'#fff', color:'#027a64', cursor:'pointer'}}
+                >
+                  {isSendingCode ? 'Sending...' : 'Resend'}
+                </button>
+                <button
+                  onClick={handleVerifyAndRegister}
+                  disabled={isVerifying || isSendingCode}
+                  style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}
+                >
+                  {isVerifying ? 'Verifying...' : 'Verify & Sign Up'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
