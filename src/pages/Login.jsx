@@ -7,8 +7,8 @@ import '../styles/vendor/landing-page.css'
 import '../styles/vendor/login-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
 
-// API base URL - use empty string in production (same origin), localhost for development
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000')
+// API base URL — empty string lets the Vite dev proxy forward /api/* to localhost:3000
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -27,6 +27,15 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isResetting, setIsResetting] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)  // seconds remaining
+  const [isResendingReset, setIsResendingReset] = useState(false)
+
+  // Count down the resend cooldown every second
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -173,6 +182,7 @@ export default function Login() {
           }
           
           alert('A 6-digit code has been sent to your email!')
+          setResendCooldown(60)
           setResetStep('code')
       } catch (error) {
           alert('Error: ' + error.message)
@@ -248,6 +258,7 @@ export default function Login() {
       setResetCode('')
       setNewPassword('')
       setConfirmPassword('')
+      setResendCooldown(0)
   }
 
   // If user is already authenticated, redirect away from login/register pages
@@ -428,12 +439,43 @@ export default function Login() {
                         value={resetCode}
                         onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     />
-                    <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 1 minute</p>
-                    <div style={{textAlign:'right', marginTop:'12px'}}>
-                      <button onClick={() => setResetStep('email')} style={{marginRight:'8px', padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Back</button>
-                      <button onClick={handleVerifyCode} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
-                        {isResetting ? 'Verifying...' : 'Verify Code'}
-                      </button>
+                    <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 10 minutes.</p>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'12px'}}>
+                      <button onClick={() => setResetStep('email')} style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Back</button>
+                      <div style={{display:'flex', gap:'8px'}}>
+                        <button
+                          onClick={async () => {
+                            setIsResendingReset(true)
+                            try {
+                              const r = await fetch(`${API_URL}/api/v1/auth/send-reset-code`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: resetEmail })
+                              })
+                              const rawText = await r.text()
+                              let d = {}
+                              try { d = JSON.parse(rawText) } catch (_) {}
+                              if (!r.ok) {
+                                setToast({ show: true, message: d.error || 'Failed to resend code. Please try again.', type: 'error' })
+                              } else {
+                                setResetCode('')
+                                setResendCooldown(60)
+                                setToast({ show: true, message: 'A new code has been sent to your email.', type: 'success' })
+                              }
+                            } catch (err) {
+                              setToast({ show: true, message: 'Could not reach the server. Please check your connection.', type: 'error' })
+                            }
+                            setIsResendingReset(false)
+                          }}
+                          disabled={resendCooldown > 0 || isResendingReset || isResetting}
+                          style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #027a64', background:'#fff', color: resendCooldown > 0 ? '#aaa' : '#027a64', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', borderColor: resendCooldown > 0 ? '#ccc' : '#027a64'}}
+                        >
+                          {isResendingReset ? 'Sending...' : resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
+                        </button>
+                        <button onClick={handleVerifyCode} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
+                          {isResetting ? 'Verifying...' : 'Verify Code'}
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}

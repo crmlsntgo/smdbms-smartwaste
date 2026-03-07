@@ -7,8 +7,8 @@ import '../styles/vendor/landing-page.css'
 import '../styles/vendor/register-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
 
-// API base URL — adjust for production
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+// API base URL — empty string lets the Vite dev proxy forward /api/* to localhost:3000
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export default function Register() {
   const [firstName, setFirstName] = useState('')
@@ -28,6 +28,15 @@ export default function Register() {
   const [verifyCode, setVerifyCode] = useState('')
   const [isSendingCode, setIsSendingCode] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0) // seconds remaining
+  const [isResendingCode, setIsResendingCode] = useState(false)
+
+  // Count down the resend cooldown every second
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
 
   // Redirect away from auth pages if already authenticated
   useEffect(() => {
@@ -135,6 +144,7 @@ export default function Register() {
         return
       }
       setVerifyCode('')
+      setResendCooldown(60)
       setShowVerifyModal(true)
     } catch (err) {
       setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
@@ -438,6 +448,7 @@ export default function Register() {
                 onClick={() => {
                   setShowVerifyModal(false)
                   setVerifyCode('')
+                  setResendCooldown(0)
                 }}
                 style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}
                 disabled={isVerifying}
@@ -447,7 +458,7 @@ export default function Register() {
               <div style={{display:'flex', gap:'8px'}}>
                 <button
                   onClick={async () => {
-                    setIsSendingCode(true)
+                    setIsResendingCode(true)
                     try {
                       const r = await fetch(`${API_URL}/api/v1/auth/send-verification-code`, {
                         method: 'POST',
@@ -461,21 +472,22 @@ export default function Register() {
                         setToast({ show: true, message: d.error || 'Failed to resend code. Please try again.', type: 'error' })
                       } else {
                         setVerifyCode('')
+                        setResendCooldown(60)
                         setToast({ show: true, message: 'A new code has been sent to your email.', type: 'success' })
                       }
                     } catch (err) {
                       setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
                     }
-                    setIsSendingCode(false)
+                    setIsResendingCode(false)
                   }}
-                  disabled={isSendingCode || isVerifying}
-                  style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #027a64', background:'#fff', color:'#027a64', cursor:'pointer'}}
+                  disabled={resendCooldown > 0 || isResendingCode || isVerifying}
+                  style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #027a64', background:'#fff', color: resendCooldown > 0 ? '#aaa' : '#027a64', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', borderColor: resendCooldown > 0 ? '#ccc' : '#027a64'}}
                 >
-                  {isSendingCode ? 'Sending...' : 'Resend'}
+                  {isResendingCode ? 'Sending...' : resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
                 </button>
                 <button
                   onClick={handleVerifyAndRegister}
-                  disabled={isVerifying || isSendingCode}
+                  disabled={isVerifying || isResendingCode}
                   style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}
                 >
                   {isVerifying ? 'Verifying...' : 'Verify & Sign Up'}
