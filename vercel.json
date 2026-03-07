@@ -7,6 +7,8 @@
     { "source": "/api/v1/auth/send-reset-code", "destination": "/api/auth/send-reset-code" },
     { "source": "/api/v1/auth/verify-reset-code", "destination": "/api/auth/verify-reset-code" },
     { "source": "/api/v1/auth/reset-password", "destination": "/api/auth/reset-password" },
+    { "source": "/api/v1/auth/send-verification-code", "destination": "/api/auth/send-verification-code" },
+    { "source": "/api/v1/auth/verify-registration-code", "destination": "/api/auth/verify-registration-code" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

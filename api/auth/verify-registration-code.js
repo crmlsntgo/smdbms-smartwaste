@@ -1,0 +1,81 @@
+import admin from "firebase-admin";
+
+function getFirebaseAdmin() {
+  if (!admin.apps.length) {
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey) {
+      // Remove surrounding quotes if present
+      privateKey = privateKey.replace(/^"|"$/g, '');
+      // Replace literal \n with actual newlines
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey,
+      }),
+    });
+  }
+  return admin;
+}
+
+export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const fb = getFirebaseAdmin();
+    const db = fb.firestore();
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ error: "Email and code are required" });
+    }
+
+    const docRef = db.collection("email_verification_codes").doc(email);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(400).json({ error: "No verification code found. Please request a new one." });
+    }
+
+    const data = docSnap.data();
+
+    if (Date.now() > data.expiresAt) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Code has expired. Please request a new one." });
+    }
+
+    if (data.attempts >= 5) {
+      await docRef.delete();
+      return res.status(400).json({ error: "Too many attempts. Please request a new code." });
+    }
+
+    if (data.code !== code) {
+      await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+      return res.status(400).json({ error: "Invalid code. Please try again." });
+    }
+
+    // Code is valid — delete it so it cannot be reused
+    await docRef.delete();
+
+    res.json({ success: true, message: "Email verified successfully" });
+  } catch (err) {
+    console.error("Verify registration code error:", err);
+    res.status(500).json({ error: "Failed to verify code: " + err.message });
+  }
+}
