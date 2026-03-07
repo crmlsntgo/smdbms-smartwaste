@@ -3,9 +3,13 @@ import nodemailer from "nodemailer";
 
 function getFirebaseAdmin() {
   if (!admin.apps.length) {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      : undefined;
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey) {
+      // Remove surrounding quotes if present
+      privateKey = privateKey.replace(/^"|"$/g, '');
+      // Replace literal \n with actual newlines
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -57,7 +61,11 @@ export default async function handler(req, res) {
     try {
       await fb.auth().getUserByEmail(email);
     } catch (err) {
-      return res.status(400).json({ error: "No account found with this email" });
+      if (err.code === 'auth/user-not-found') {
+        return res.status(400).json({ error: "No account found with this email" });
+      }
+      console.error("Firebase Auth error:", err);
+      return res.status(500).json({ error: "Authentication service error: " + err.message });
     }
 
     // Generate 6-digit code
