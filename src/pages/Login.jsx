@@ -7,8 +7,8 @@ import '../styles/vendor/landing-page.css'
 import '../styles/vendor/login-style.css'
 import { redirectIfAuthenticated } from '../utils/authManager'
 
-// API base URL - adjust for production
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+// API base URL - use empty string in production (same origin), localhost for development
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3000')
 
 export default function Login() {
   const [email, setEmail] = useState('')

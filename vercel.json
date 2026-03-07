@@ -3,7 +3,15 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/v1/auth/send-reset-code", "destination": "/api/auth/send-reset-code" },
+    { "source": "/api/v1/auth/verify-reset-code", "destination": "/api/auth/verify-reset-code" },
+    { "source": "/api/v1/auth/reset-password", "destination": "/api/auth/reset-password" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
