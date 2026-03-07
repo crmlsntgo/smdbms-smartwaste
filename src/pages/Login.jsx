@@ -173,7 +173,17 @@ export default function Login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: resetEmail })
           })
-          const data = await response.json()
+
+          const text = await response.text()
+          let data
+          try {
+            data = JSON.parse(text)
+          } catch {
+            console.error('Non-JSON response:', text)
+            alert('Server error. Please try again later.')
+            setIsResetting(false)
+            return
+          }
           
           if (!response.ok) {
             alert(data.error || 'Failed to send reset code')
@@ -203,7 +213,17 @@ export default function Login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: resetEmail, code: resetCode })
           })
-          const data = await response.json()
+
+          const text = await response.text()
+          let data
+          try {
+            data = JSON.parse(text)
+          } catch {
+            console.error('Non-JSON response:', text)
+            alert('Server error. Please try again later.')
+            setIsResetting(false)
+            return
+          }
           
           if (!response.ok) {
             alert(data.error || 'Invalid code')
@@ -235,7 +255,17 @@ export default function Login() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword })
           })
-          const data = await response.json()
+
+          const text = await response.text()
+          let data
+          try {
+            data = JSON.parse(text)
+          } catch {
+            console.error('Non-JSON response:', text)
+            alert('Server error. Please try again later.')
+            setIsResetting(false)
+            return
+          }
           
           if (!response.ok) {
             alert(data.error || 'Failed to reset password')

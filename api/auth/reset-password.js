@@ -1,17 +1,21 @@
 import admin from "firebase-admin";
 
-// Initialize Firebase Admin (singleton pattern for serverless)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
-}
+function getFirebaseAdmin() {
+  if (!admin.apps.length) {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      : undefined;
 
-const db = admin.firestore();
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey,
+      }),
+    });
+  }
+  return admin;
+}
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -30,6 +34,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const fb = getFirebaseAdmin();
+    const db = fb.firestore();
     const { email, code, newPassword } = req.body;
 
     if (!email || !code || !newPassword) {
@@ -61,8 +67,8 @@ export default async function handler(req, res) {
     }
 
     // Update password in Firebase Auth
-    const userRecord = await admin.auth().getUserByEmail(email);
-    await admin.auth().updateUser(userRecord.uid, { password: newPassword });
+    const userRecord = await fb.auth().getUserByEmail(email);
+    await fb.auth().updateUser(userRecord.uid, { password: newPassword });
 
     // Delete the reset code
     await docRef.delete();
@@ -70,6 +76,6 @@ export default async function handler(req, res) {
     res.json({ success: true, message: "Password reset successfully" });
   } catch (err) {
     console.error("Reset password error:", err);
-    res.status(500).json({ error: "Failed to reset password" });
+    res.status(500).json({ error: "Failed to reset password: " + err.message });
   }
 }

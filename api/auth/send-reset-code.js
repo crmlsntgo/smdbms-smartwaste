@@ -1,27 +1,32 @@
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 
-// Initialize Firebase Admin (singleton pattern for serverless)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
+function getFirebaseAdmin() {
+  if (!admin.apps.length) {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      : undefined;
+
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey,
+      }),
+    });
+  }
+  return admin;
 }
 
-const db = admin.firestore();
-
-// Email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+function getTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+}
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -40,6 +45,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const fb = getFirebaseAdmin();
+    const db = fb.firestore();
     const { email } = req.body;
 
     if (!email) {
@@ -47,9 +54,8 @@ export default async function handler(req, res) {
     }
 
     // Check if user exists in Firebase Auth
-    let userRecord;
     try {
-      userRecord = await admin.auth().getUserByEmail(email);
+      await fb.auth().getUserByEmail(email);
     } catch (err) {
       return res.status(400).json({ error: "No account found with this email" });
     }
@@ -63,10 +69,11 @@ export default async function handler(req, res) {
       code,
       expiresAt,
       attempts: 0,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      createdAt: fb.firestore.FieldValue.serverTimestamp()
     });
 
     // Send email
+    const transporter = getTransporter();
     const mailOptions = {
       from: `"SmartWaste" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -96,6 +103,6 @@ export default async function handler(req, res) {
     res.json({ success: true, message: "Reset code sent to your email" });
   } catch (err) {
     console.error("Send reset code error:", err);
-    res.status(500).json({ error: "Failed to send reset code" });
+    res.status(500).json({ error: "Failed to send reset code: " + err.message });
   }
 }

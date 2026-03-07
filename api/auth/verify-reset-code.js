@@ -1,17 +1,21 @@
 import admin from "firebase-admin";
 
-// Initialize Firebase Admin (singleton pattern for serverless)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
-}
+function getFirebaseAdmin() {
+  if (!admin.apps.length) {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      : undefined;
 
-const db = admin.firestore();
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey,
+      }),
+    });
+  }
+  return admin;
+}
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -30,6 +34,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const fb = getFirebaseAdmin();
+    const db = fb.firestore();
     const { email, code } = req.body;
 
     if (!email || !code) {
@@ -59,7 +65,7 @@ export default async function handler(req, res) {
 
     // Verify code
     if (data.code !== code) {
-      await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+      await docRef.update({ attempts: fb.firestore.FieldValue.increment(1) });
       return res.status(400).json({ error: "Invalid code. Please try again." });
     }
 
@@ -69,6 +75,6 @@ export default async function handler(req, res) {
     res.json({ success: true, message: "Code verified successfully" });
   } catch (err) {
     console.error("Verify code error:", err);
-    res.status(500).json({ error: "Failed to verify code" });
+    res.status(500).json({ error: "Failed to verify code: " + err.message });
   }
 }
