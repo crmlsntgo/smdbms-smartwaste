@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
@@ -29,6 +30,9 @@ export default function Login() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)  // seconds remaining
   const [isResendingReset, setIsResendingReset] = useState(false)
+  const [resetEmailError, setResetEmailError] = useState('')
+
+  const handleToastClose = useCallback(() => setToast(prev => ({ ...prev, show: false })), [])
 
   // Count down the resend cooldown every second
   useEffect(() => {
@@ -162,10 +166,16 @@ export default function Login() {
 
   // Send 6-digit code to email
   const handleSendResetCode = async () => {
-      if(!resetEmail) {
-          alert('Please enter your email')
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+      if (!resetEmail) {
+          setResetEmailError('Please enter your email.')
           return
       }
+      if (!emailRegex.test(resetEmail)) {
+          setResetEmailError('Please enter a valid email address.')
+          return
+      }
+      setResetEmailError('')
       setIsResetting(true)
       try {
           const response = await fetch(`${API_URL}/api/v1/auth/send-reset-code`, {
@@ -180,13 +190,13 @@ export default function Login() {
             data = JSON.parse(text)
           } catch {
             console.error('Non-JSON response:', text)
-            alert('Server error. Please try again later.')
+            setResetEmailError('Server error. Please try again later.')
             setIsResetting(false)
             return
           }
           
           if (!response.ok) {
-            alert(data.error || 'Failed to send reset code')
+            setResetEmailError(data.error || 'Failed to send reset code.')
             setIsResetting(false)
             return
           }
@@ -195,7 +205,7 @@ export default function Login() {
           setResendCooldown(60)
           setResetStep('code')
       } catch (error) {
-          alert('Error: ' + error.message)
+          setResetEmailError('Could not reach the server. Please check your connection.')
       }
       setIsResetting(false)
   }
@@ -289,6 +299,7 @@ export default function Login() {
       setNewPassword('')
       setConfirmPassword('')
       setResendCooldown(0)
+      setResetEmailError('')
   }
 
   // If user is already authenticated, redirect away from login/register pages
@@ -303,7 +314,8 @@ export default function Login() {
           message={toast.message}
           show={toast.show}
           type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
+          onClose={handleToastClose}
+          duration={3000}
           style={{ top: '20px', right: '20px' }}
         />
         <div className="bg-shape1"></div>
@@ -433,119 +445,159 @@ export default function Login() {
         </div>
         </div>
 
-        {showResetModal && (
-            <div id="forgotModal" className="modal" style={{display:'flex', position:'fixed', left:0, top:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.5)', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-            <div style={{background:'#fff', padding:'20px', borderRadius:'8px', width:'90%', maxWidth:'400px', color:'#000', boxShadow:'0 6px 18px rgba(0,0,0,0.2)'}}>
-                
-                {resetStep === 'email' && (
-                  <>
-                    <h3 style={{marginTop:0}}>Reset Password</h3>
-                    <p>Enter your email and we'll send you a 6-digit verification code.</p>
-                    <input 
-                        type="email" 
-                        placeholder="Email" 
-                        style={{width:'100%', padding:'10px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc'}} 
-                        value={resetEmail}
-                        onChange={e => setResetEmail(e.target.value)}
-                    />
-                    <div style={{textAlign:'right', marginTop:'12px'}}>
-                      <button onClick={closeResetModal} style={{marginRight:'8px', padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Cancel</button>
-                      <button onClick={handleSendResetCode} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
-                        {isResetting ? 'Sending...' : 'Send Code'}
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {resetStep === 'code' && (
-                  <>
-                    <h3 style={{marginTop:0}}>Enter Verification Code</h3>
-                    <p>We've sent a 6-digit code to <strong>{resetEmail}</strong></p>
-                    <input 
-                        type="text" 
-                        placeholder="Enter 6-digit code"
-                        maxLength={6}
-                        style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'16px', letterSpacing:'8px', fontWeight:'bold'}} 
-                        value={resetCode}
-                        onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    />
-                    <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 10 minutes.</p>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'12px'}}>
-                      <button onClick={() => setResetStep('email')} style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Back</button>
-                      <div style={{display:'flex', gap:'8px'}}>
-                        <button
-                          onClick={async () => {
-                            setIsResendingReset(true)
-                            try {
-                              const r = await fetch(`${API_URL}/api/v1/auth/send-reset-code`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: resetEmail })
-                              })
-                              const rawText = await r.text()
-                              let d = {}
-                              try { d = JSON.parse(rawText) } catch (_) {}
-                              if (!r.ok) {
-                                setToast({ show: true, message: d.error || 'Failed to resend code. Please try again.', type: 'error' })
-                              } else {
-                                setResetCode('')
-                                setResendCooldown(60)
-                                setToast({ show: true, message: 'A new code has been sent to your email.', type: 'success' })
-                              }
-                            } catch (err) {
-                              setToast({ show: true, message: 'Could not reach the server. Please check your connection.', type: 'error' })
-                            }
-                            setIsResendingReset(false)
-                          }}
-                          disabled={resendCooldown > 0 || isResendingReset || isResetting}
-                          style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #027a64', background:'#fff', color: resendCooldown > 0 ? '#aaa' : '#027a64', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', borderColor: resendCooldown > 0 ? '#ccc' : '#027a64'}}
-                        >
-                          {isResendingReset ? 'Sending...' : resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
-                        </button>
-                        <button onClick={handleVerifyCode} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
-                          {isResetting ? 'Verifying...' : 'Verify Code'}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {resetStep === 'newPassword' && (
-                  <>
-                    <h3 style={{marginTop:0}}>Set New Password</h3>
-                    <p>Enter your new password below.</p>
-                    <div style={{position:'relative'}}>
-                      <input 
-                          type={showNewPassword ? "text" : "password"}
-                          placeholder="New Password" 
-                          style={{width:'100%', padding:'10px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc'}} 
-                          value={newPassword}
-                          onChange={e => setNewPassword(e.target.value)}
-                      />
-                      <span onClick={() => setShowNewPassword(!showNewPassword)} style={{position:'absolute', right:'10px', top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'#666'}}>
-                        <i className={`fa ${showNewPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                      </span>
-                    </div>
-                    <input 
-                        type="password" 
-                        placeholder="Confirm New Password" 
-                        style={{width:'100%', padding:'10px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc'}} 
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                    />
-                    <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Password must be at least 6 characters</p>
-                    <div style={{textAlign:'right', marginTop:'12px'}}>
-                      <button onClick={closeResetModal} style={{marginRight:'8px', padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}>Cancel</button>
-                      <button onClick={handleResetPassword} disabled={isResetting} style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}>
-                        {isResetting ? 'Resetting...' : 'Reset Password'}
-                      </button>
-                    </div>
-                  </>
-                )}
-
+        {showResetModal && createPortal(
+  <div id="forgotModal" className="modal" style={{
+    display: 'flex', 
+    position: 'fixed', 
+    left: 0, 
+    top: 0, 
+    width: '100%', 
+    height: '100%', 
+    background: 'rgba(0,0,0,0.6)', // Slightly darker backdrop for focus
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    zIndex: 99999
+  }}>
+    <div style={{
+      background: '#fff', 
+      padding: '35px 25px', 
+      borderRadius: '16px', // Matches modern UI better
+      width: '90%', 
+      maxWidth: '400px', 
+      color: '#000', 
+      boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+      textAlign: 'center', // Centers text to match the login flow
+      fontFamily: '"Montserrat", sans-serif'
+    }}>
+        
+        {resetStep === 'email' && (
+          <>
+            <h3 style={{ marginTop: 0, color: '#027a64', fontWeight: 700 }}>Reset Password</h3>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '20px' }}>
+              Enter your email and we'll send you a 6-digit verification code.
+            </p>
+            <input 
+                type="email" 
+                placeholder="EMAIL" 
+                style={{
+                  width: '100%', 
+                  padding: '12px 15px', 
+                  margin: '10px 0 0 0', 
+                  boxSizing: 'border-box', 
+                  borderRadius: '8px', 
+                  border: resetEmailError ? '1px solid #ff4d4d' : '1px solid #eee',
+                  boxShadow: resetEmailError ? '0 0 10px rgba(255, 77, 77, 0.4)' : 'none',
+                  background: '#f9f9f9',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }} 
+                value={resetEmail}
+                onChange={e => { setResetEmail(e.target.value); setResetEmailError('') }}
+            />
+            {resetEmailError && (
+              <p style={{ color: '#ff4d4d', fontSize: '0.75rem', margin: '5px 0 0 2px', textAlign: 'left', fontWeight: 500, fontFamily: '"Montserrat", sans-serif' }}>
+                {resetEmailError}
+              </p>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+              <button 
+                onClick={handleSendResetCode} 
+                disabled={isResetting} 
+                className="login-btn"
+                style={{ width: '100%', margin: 0, animation: 'none' }}
+              >
+                {isResetting ? 'SENDING...' : 'SEND CODE'}
+              </button>
+              <button 
+                onClick={closeResetModal} 
+                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.85rem' }}
+              >
+                Cancel
+              </button>
             </div>
-            </div>
+          </>
         )}
+
+        {resetStep === 'code' && (
+          <>
+            <h3 style={{ marginTop: 0, color: '#027a64' }}>Verification</h3>
+            <p style={{ fontSize: '0.9rem' }}>We've sent a 6-digit code to <br/><strong>{resetEmail}</strong></p>
+            <input 
+                type="text" 
+                placeholder="000000"
+                maxLength={6}
+                style={{
+                  width: '100%', 
+                  padding: '15px', 
+                  margin: '15px 0', 
+                  boxSizing: 'border-box', 
+                  borderRadius: '8px', 
+                  border: '2px solid #027a64', 
+                  textAlign: 'center', 
+                  fontSize: '20px', 
+                  letterSpacing: '8px', 
+                  fontWeight: 'bold',
+                  background: '#f0f9f7'
+                }} 
+                value={resetCode}
+                onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            />
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+              <button 
+                onClick={() => setResetStep('email')} 
+                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+              >
+                Back
+              </button>
+              <button 
+                onClick={handleVerifyCode} 
+                disabled={isResetting} 
+                className="login-btn"
+                style={{ flex: 2, margin: 0,borderRadius: '8px', padding: '12px', animation: 'none' }}
+              >
+                {isResetting ? 'VERIFYING...' : 'VERIFY'}
+              </button>
+            </div>
+            <button
+              onClick={handleSendResetCode}
+              disabled={resendCooldown > 0 || isResendingReset}
+              style={{ marginTop: '15px', background: 'none', border: 'none', color: '#027a64', cursor: 'pointer', fontSize: '0.8rem' }}
+            >
+              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Didn't get a code? Resend"}
+            </button>
+          </>
+        )}
+
+        {resetStep === 'newPassword' && (
+          <>
+            <h3 style={{ marginTop: 0, color: '#027a64' }}>New Password</h3>
+            <input 
+                type={showNewPassword ? "text" : "password"}
+                placeholder="NEW PASSWORD" 
+                style={{ width: '100%', padding: '12px', margin: '8px 0', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9' }} 
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+            />
+            <input 
+                type="password" 
+                placeholder="CONFIRM PASSWORD" 
+                style={{ width: '100%', padding: '12px', margin: '8px 0', borderRadius: '8px', border: '1px solid #eee', background: '#f9f9f9' }} 
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+            />
+            <button 
+              onClick={handleResetPassword} 
+              disabled={isResetting} 
+              className="login-btn"
+              style={{ width: '100%', marginTop: '15px' }}
+            >
+              {isResetting ? 'UPDATING...' : 'UPDATE PASSWORD'}
+            </button>
+          </>
+        )}
+    </div>
+  </div>
+, document.body)}
     </div>
   )
 }
