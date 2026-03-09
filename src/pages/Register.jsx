@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth'
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
@@ -429,74 +430,72 @@ export default function Register() {
       </div>
 
       {/* Email Verification Modal */}
-      {showVerifyModal && (
-        <div style={{display:'flex', position:'fixed', left:0, top:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.5)', alignItems:'center', justifyContent:'center', zIndex:9999}}>
-          <div style={{background:'#fff', padding:'20px', borderRadius:'8px', width:'90%', maxWidth:'400px', color:'#000', boxShadow:'0 6px 18px rgba(0,0,0,0.2)'}}>
-            <h3 style={{marginTop:0}}>Verify Your Email</h3>
-            <p>We've sent a 6-digit code to <strong>{email}</strong>. Enter it below to complete your registration.</p>
+      {showVerifyModal && createPortal(
+        <div style={{ display: 'flex', position: 'fixed', left: 0, top: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+          <div style={{ background: '#fff', padding: '35px 25px', borderRadius: '16px', width: '90%', maxWidth: '400px', color: '#000', boxShadow: '0 10px 30px rgba(0,0,0,0.3)', textAlign: 'center', fontFamily: '"Montserrat", sans-serif' }}>
+            <h3 style={{ marginTop: 0, color: '#027a64' }}>Verify Your Email</h3>
+            <p style={{ fontSize: '0.9rem' }}>We've sent a 6-digit code to <br /><strong>{email}</strong></p>
             <input
               type="text"
-              placeholder="Enter 6-digit code"
+              placeholder="000000"
               maxLength={6}
-              style={{width:'100%', padding:'14px', margin:'8px 0', boxSizing:'border-box', borderRadius:'4px', border:'1px solid #ccc', textAlign:'center', fontSize:'16px', letterSpacing:'8px', fontWeight:'bold'}}
+              style={{ width: '100%', padding: '15px', margin: '15px 0', boxSizing: 'border-box', borderRadius: '8px', border: '2px solid #027a64', textAlign: 'center', fontSize: '20px', letterSpacing: '8px', fontWeight: 'bold', background: '#f0f9f7' }}
               value={verifyCode}
               onChange={e => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             />
-            <p style={{fontSize:'12px', color:'#666', marginTop:'4px'}}>Code expires in 10 minutes. Check your spam folder if you don't see it.</p>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'12px'}}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
               <button
                 onClick={() => {
                   setShowVerifyModal(false)
                   setVerifyCode('')
                   setResendCooldown(0)
                 }}
-                style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #ccc', background:'#fff', cursor:'pointer'}}
                 disabled={isVerifying}
+                style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
               >
                 Cancel
               </button>
-              <div style={{display:'flex', gap:'8px'}}>
-                <button
-                  onClick={async () => {
-                    setIsResendingCode(true)
-                    try {
-                      const r = await fetch(`${API_URL}/api/v1/auth/send-verification-code`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email })
-                      })
-                      const rRaw = await r.text()
-                      let d = {}
-                      try { d = JSON.parse(rRaw) } catch (_) {}
-                      if (!r.ok) {
-                        setToast({ show: true, message: d.error || 'Failed to resend code. Please try again.', type: 'error' })
-                      } else {
-                        setVerifyCode('')
-                        setResendCooldown(60)
-                        setToast({ show: true, message: 'A new code has been sent to your email.', type: 'success' })
-                      }
-                    } catch (err) {
-                      setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
-                    }
-                    setIsResendingCode(false)
-                  }}
-                  disabled={resendCooldown > 0 || isResendingCode || isVerifying}
-                  style={{padding:'10px 16px', borderRadius:'4px', border:'1px solid #027a64', background:'#fff', color: resendCooldown > 0 ? '#aaa' : '#027a64', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', borderColor: resendCooldown > 0 ? '#ccc' : '#027a64'}}
-                >
-                  {isResendingCode ? 'Sending...' : resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend'}
-                </button>
-                <button
-                  onClick={handleVerifyAndRegister}
-                  disabled={isVerifying || isResendingCode}
-                  style={{padding:'10px 16px', borderRadius:'4px', border:'none', background:'#027a64', color:'#fff', cursor:'pointer'}}
-                >
-                  {isVerifying ? 'Verifying...' : 'Verify & Sign Up'}
-                </button>
-              </div>
+              <button
+                onClick={handleVerifyAndRegister}
+                disabled={isVerifying || isResendingCode}
+                className="login-btn"
+                style={{ flex: 2, margin: 0, borderRadius: '8px', padding: '12px', animation: 'none' }}
+              >
+                {isVerifying ? 'VERIFYING...' : 'VERIFY & SIGN UP'}
+              </button>
             </div>
+            <button
+              onClick={async () => {
+                setIsResendingCode(true)
+                try {
+                  const r = await fetch(`${API_URL}/api/v1/auth/send-verification-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                  })
+                  const rRaw = await r.text()
+                  let d = {}
+                  try { d = JSON.parse(rRaw) } catch (_) {}
+                  if (!r.ok) {
+                    setToast({ show: true, message: d.error || 'Failed to resend code. Please try again.', type: 'error' })
+                  } else {
+                    setVerifyCode('')
+                    setResendCooldown(60)
+                    setToast({ show: true, message: 'A new code has been sent to your email.', type: 'success' })
+                  }
+                } catch (err) {
+                  setToast({ show: true, message: 'Could not reach the server. Please check your connection and try again.', type: 'error' })
+                }
+                setIsResendingCode(false)
+              }}
+              disabled={resendCooldown > 0 || isResendingCode || isVerifying}
+              style={{ marginTop: '15px', background: 'none', border: 'none', color: '#027a64', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', fontSize: '0.8rem' }}
+            >
+              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Didn't get a code? Resend"}
+            </button>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   )
 }
