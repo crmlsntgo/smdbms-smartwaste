@@ -5,16 +5,9 @@
       font-family: "Poppins", sans-serif;
     }
 
-    /* ========================================
-       ANIMATIONS
-       ======================================== */
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
+    /* reduce spacing between all direct children inside the card */
+    .login-container * + * {
+      margin-top: 5px !important;
     }
 
     @keyframes slideInUp {
@@ -24,6 +17,18 @@
       }
       to {
         transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* variant that keeps the fixed centering transform intact */
+    @keyframes slideInUpCenter {
+      from {
+        transform: translate(-50%, -50%) translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translate(-50%, -50%) translateY(0);
         opacity: 1;
       }
     }
@@ -164,12 +169,13 @@
     /* Scrollable content area below the sticky header */
     .login-scroll-area {
   flex: 1;
+  min-height: 100vh; /* ensure full viewport height for flex centering */
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  padding: 30px 20px;
+  align-items: center; /* vertically center the card */
+  padding: 5rem 20px 0 20px; /* slightly reduced top padding to raise card */
   position: relative;
   z-index: 1;
   box-sizing: border-box;
@@ -224,6 +230,7 @@
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15), 0 4px 15px rgba(0, 0, 0, 0.1);
       text-align: center;
       color: #027a64;
+      /* remove fixed positioning; parent flex will center it */
       position: relative;
       z-index: 2;
       animation: slideInUp 0.8s ease-out, glow 3s ease-in-out infinite;
@@ -302,7 +309,7 @@
 
     .welcome {
       font-family: "Montserrat", sans-serif;
-      margin: 24px 0 12px;
+      margin: 16px 0 8px;
       font-size: 22px;
       font-weight: 600;
       animation: slideInUp 0.8s ease-out 0.4s both;
@@ -310,7 +317,7 @@
 
     .enter-message {
       font-family: "Montserrat", sans-serif;
-      margin: 0 0 30px;
+      margin: 0 0 20px;
       font-size: 14px;
       opacity: 0.9;
       line-height: 1.6;
@@ -326,7 +333,7 @@
       border: 2px solid rgba(2, 122, 100, 0.3);
       border-radius: 12px;
       padding: 14px 16px;
-      margin: 12px 0;
+      margin: 5px 0; /* even tighter spacing */
       color: #027a64;
       font-size: 15px;
       outline: none;
@@ -405,6 +412,7 @@
     .login-btn {
       background: linear-gradient(135deg, #027a64 0%, #058b6e 100%);
       color: white;
+      margin-top: 5px; /* reduce gap above button */
       border: none;
       border-radius: 30px;
       padding: 14px;
@@ -520,7 +528,7 @@
 
     .signup-text {
       font-size: 0.85rem;
-      margin-top: 10px;
+      margin-top: 5px;
       font-family: "Montserrat", sans-serif;
       animation: fadeIn 0.6s ease-out 1s both;
       color: #027a64;
@@ -530,7 +538,7 @@
       display: flex;
       align-items: center;
       text-align: center;
-      margin: 10px 0;
+      margin: 3px 0; /* even smaller */
       color: rgba(2, 122, 100, 0.7); /* Matches your design's text color */
       font-family: "Montserrat", sans-serif;
       font-size: 0.8rem;
@@ -738,4 +746,29 @@
       outline: 2px solid rgba(255, 255, 255, 0.5);
       outline-offset: 2px;
       border-radius: 2px;
+    }
+
+    /* ========================================
+       MODAL OVERLAY (FULLSCREEN CENTERING)
+       ======================================== */
+    .fullscreen-modal {
+      position: fixed;
+      inset: 0; /* top:0; right:0; bottom:0; left:0; */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+      z-index: 99999;
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 35px 25px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 400px;
+      color: #000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      text-align: center;
+      font-family: "Montserrat", sans-serif;
     }

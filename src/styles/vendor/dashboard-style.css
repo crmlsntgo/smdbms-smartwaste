@@ -12,11 +12,17 @@ body {
     flex-direction: column;
 }
 
+/* Tracks actual header height so the sidebar top offset is always correct
+   (especially on mobile where the header wraps to two rows). */
+:root {
+    --sb-header-h: 64px;
+}
+
 /* Dashboard wrapper below header */
 .dashboard-wrapper {
     display: flex;
     flex: 1;
-    min-height: calc(100vh - 64px);
+    min-height: calc(100vh - var(--sb-header-h));
 }
 
 /* Sidebar design */
@@ -27,6 +33,14 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
+    /* Sticky sidebar — stays visible while scrolling, offset below the fixed header.
+       --sb-header-h is measured in JS so it adapts to any header height (incl. mobile wrap). */
+    position: sticky;
+    top: var(--sb-header-h);
+    height: calc(100vh - var(--sb-header-h));
+    overflow-y: auto;
+    align-self: flex-start;
+    flex-shrink: 0;
 }
 
 /* Collapsed sidebar: icons-only */

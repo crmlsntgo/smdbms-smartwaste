@@ -50,6 +50,11 @@ html.dark .users-title {
     color: #058b6e !important;
 }
 
+html.dark .btn-cancel:hover {
+  background: rgb(203, 200, 200) !important;
+  color: #101828;
+}   
+    
 html.dark .users-count,
 html.dark .filter-label,
 html.dark .fas.fa-filter.filter-icon {

@@ -108,6 +108,22 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', apply)
   }, [collapsed])
 
+  // Keep --sb-header-h CSS variable in sync with the actual rendered header height.
+  // This ensures the sidebar top offset is correct on every screen size, including
+  // mobile where the header wraps to two rows and is taller than 64 px.
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      const header = document.querySelector('.sb-header')
+      if (header) {
+        const h = header.getBoundingClientRect().height
+        document.documentElement.style.setProperty('--sb-header-h', `${h}px`)
+      }
+    }
+    updateHeaderHeight()
+    window.addEventListener('resize', updateHeaderHeight)
+    return () => window.removeEventListener('resize', updateHeaderHeight)
+  }, [])
+
   useEffect(() => {
     const handler = (e) => {
       try { setCollapsed(!!(e && e.detail && e.detail.collapsed)) } catch (err) {}

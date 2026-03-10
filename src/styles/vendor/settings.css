@@ -272,6 +272,7 @@ input:checked + .toggle-slider:before {
 .settings-page .btn-secondary:hover {
   background: #f9fafb;
   border-color: #9ca3af;
+  text-decoration: none;
 }
 
 .btn-archive {

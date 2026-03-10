@@ -322,7 +322,7 @@ export default function Login() {
         <div className="bg-shape2"></div>
 
         {/* Landing Nav Header */}
-        <header className="landing-nav" style={{ position: 'sticky', top: 0, width: '100%', flexShrink: 0, zIndex: 1000 }}>
+        <header className="landing-nav" style={{ position: 'absolute', top: 0, width: '100%', flexShrink: 0, zIndex: 1000 }}>
           <div className="landing-nav__container">
             <a href="/" className="landing-nav__logo">
               <div className="landing-nav__logo-icon">
@@ -347,6 +347,7 @@ export default function Login() {
             </button>
           </div>
         </header>
+
 
         <div className="login-scroll-area">
         <div className="login-container">
@@ -446,29 +447,8 @@ export default function Login() {
         </div>
 
         {showResetModal && createPortal(
-  <div id="forgotModal" className="modal" style={{
-    display: 'flex', 
-    position: 'fixed', 
-    left: 0, 
-    top: 0, 
-    width: '100%', 
-    height: '100%', 
-    background: 'rgba(0,0,0,0.6)', // Slightly darker backdrop for focus
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    zIndex: 99999
-  }}>
-    <div style={{
-      background: '#fff', 
-      padding: '35px 25px', 
-      borderRadius: '16px', // Matches modern UI better
-      width: '90%', 
-      maxWidth: '400px', 
-      color: '#000', 
-      boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-      textAlign: 'center', // Centers text to match the login flow
-      fontFamily: '"Montserrat", sans-serif'
-    }}>
+  <div id="forgotModal" className="fullscreen-modal">
+    <div className="modal-content">
         
         {resetStep === 'email' && (
           <>

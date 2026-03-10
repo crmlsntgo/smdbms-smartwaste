@@ -278,7 +278,7 @@ export default function Register() {
       <div className="bg-shape2"></div>
 
       {/* Landing Nav Header */}
-      <header className="landing-nav" style={{ position: 'sticky', top: 0, width: '100%', flexShrink: 0, zIndex: 1000 }}>
+      <header className="landing-nav" style={{ position: 'absolute', top: 0, width: '100%', flexShrink: 0, zIndex: 1000 }}>
         <div className="landing-nav__container">
           <a href="/" className="landing-nav__logo">
             <div className="landing-nav__logo-icon">
@@ -303,6 +303,7 @@ export default function Register() {
           </button>
         </div>
       </header>
+
 
       <div className="login-scroll-area">
       <div className="login-container">
