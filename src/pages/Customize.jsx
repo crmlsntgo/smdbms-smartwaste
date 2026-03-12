@@ -625,7 +625,7 @@ export default function Customize() {
                             </div>
                             <div id="custom-capacity" className={`form-group ${getHighlightClass('custom-capacity')}`}>
                                 <label htmlFor="bin-capacity">Capacity (Liters)</label>
-                                <input type="text" id="bin-capacity" value={formData.capacity} onChange={handleInputChange} disabled={!selectedBinId} />
+                                <input type="text" id="bin-capacity" value={formData.capacity} readOnly disabled={!selectedBinId} />
                             </div>
                         </div>
 
