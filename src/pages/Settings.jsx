@@ -392,8 +392,8 @@ export default function Settings() {
                             <input type="email" id="settings-email" value={formData.email} readOnly style={{background: '#f9fafb', cursor: 'not-allowed'}} />
                           </div>
                           <div className="form-field">
-                            <label>Username</label>
-                            <input type="text" id="settings-username" value={formData.username} readOnly style={{background: '#f9fafb', cursor: 'not-allowed'}} />
+                            <label>Identifier</label>
+                            <input type="text" id="settings-identifier" value={formData.username} readOnly style={{background: '#f9fafb', cursor: 'not-allowed'}} />
                           </div>
                           <div className="form-field">
                             <label>Address</label>

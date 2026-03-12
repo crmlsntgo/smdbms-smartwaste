@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import initFirebase from '../firebaseConfig'
+import Toast from '../components/Toast'
 import {
   getAuth,
   updatePassword,
@@ -13,7 +14,9 @@ import {
   updateDoc,
   getDoc,
   setDoc,
+  deleteDoc,
 } from 'firebase/firestore'
+import '../styles/vendor/landing-page.css'
 import '../styles/vendor/login-style.css'
 
 export default function GoogleSetup(){
@@ -26,6 +29,7 @@ export default function GoogleSetup(){
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmError, setConfirmError] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: '', type: '' })
 
   useEffect(()=>{
     let unsub = null
@@ -45,8 +49,13 @@ export default function GoogleSetup(){
           try{
             const uSnap = await getDoc(doc(db, 'users', user.uid))
             if (uSnap.exists()){
-              const data = uSnap.data()
-              if (data.firstName && data.lastName && data.firstName.trim() !== '' && data.lastName.trim() !== ''){
+              const data = uSnap.data() || {}
+              const profileComplete = Boolean(
+                data.firstName && data.lastName &&
+                data.firstName.trim() !== '' && data.lastName.trim() !== ''
+              )
+              const setupComplete = data.setupComplete !== false && profileComplete
+              if (setupComplete){
                 // Profile already setup, redirect back or to dashboard
                 // If there's a referrer within the app (not implemented in router/history here cleanly), default to /
                 // For "back to whatever page they're in", usually means "back to previous".
@@ -55,12 +64,16 @@ export default function GoogleSetup(){
                 window.location.href = '/'
                 return
               }
-            } else {
-                 // No user doc? Should have been created by login...
-                 // If not, redirect to login
-                 window.location.href = '/login'
-                 return
-            }
+              } else {
+                // No user doc yet: create a stub so setup can proceed without redirect loops.
+                await setDoc(doc(db, 'users', user.uid), {
+                  email: user.email || '',
+                  role: 'utility staff',
+                  createdAt: new Date().toISOString(),
+                  photoURL: user.photoURL || '',
+                  setupComplete: false,
+                })
+              }
           }catch(e){ console.warn('Could not read user profile', e) }
 
           setLoading(false)
@@ -146,25 +159,28 @@ export default function GoogleSetup(){
         lastName,
         role: 'utility staff',
         updatedAt: new Date().toISOString(),
+        setupComplete: true,
       })
 
       await ensureUsernameMapping(db, currentUser.uid)
 
-      alert('Profile setup complete! Redirecting to dashboard...')
+      setToast({ show: true, message: 'Profile setup complete! Redirecting to dashboard...', type: 'success' })
       
       // Redirect based on role
-      try {
-        const uSnap = await getDoc(doc(db, 'users', currentUser.uid))
-        if(uSnap.exists()) {
-             const r = (uSnap.data().role || 'utility staff').toLowerCase()
-             if (r === 'admin') window.location.href = '/admin/dashboard'
-             else window.location.href = '/dashboard'
-        } else {
-             window.location.href = '/dashboard'
+      setTimeout(async () => {
+        try {
+          const uSnap = await getDoc(doc(db, 'users', currentUser.uid))
+          if(uSnap.exists()) {
+               const r = (uSnap.data().role || 'utility staff').toLowerCase()
+               if (r === 'admin') window.location.href = '/admin/dashboard'
+               else window.location.href = '/dashboard'
+          } else {
+               window.location.href = '/dashboard'
+          }
+        } catch (e) {
+            window.location.href = '/dashboard'
         }
-      } catch (e) {
-          window.location.href = '/dashboard'
-      }
+      }, 2000)
 
     }catch(error){
       console.error('Setup error:', error)
@@ -183,35 +199,69 @@ export default function GoogleSetup(){
     }
   }
 
+  const handleCancelSetup = async () => {
+    try {
+      const app = initFirebase()
+      const auth = getAuth(app)
+      const db = getFirestore(app)
+      const user = auth.currentUser
+      if (user) {
+        // Remove stub user doc so no trace is left
+        try { await deleteDoc(doc(db, 'users', user.uid)) } catch (e) { console.warn('Could not delete user doc:', e) }
+        // Delete the Firebase Auth account itself
+        try { await user.delete() } catch (e) { console.warn('Could not delete auth account:', e) }
+        // Sign out regardless
+        try { await signOut(auth) } catch (e) {}
+      }
+    } catch (e) { console.warn('Cancel setup error:', e) }
+    // Replace history entry so back-button won't return to /setup
+    window.location.replace('/login')
+  }
+
   if (loading) return <div style={{display:'flex',justifyContent:'center',alignItems:'center',height:'100vh'}}>Loading...</div>
 
   return (
     <div className="login-page login-body">
+      <Toast
+        message={toast.message}
+        show={toast.show}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        duration={3000}
+        style={{ top: '20px', right: '20px' }}
+      />
       <div className="bg-shape1"></div>
       <div className="bg-shape2"></div>
 
-      <div className="logo-corner">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path
-            d="M5 7H19V5C19 3.89543 18.1046 3 17 3H7C5.89543 3 5 3.89543 5 5V7Z"
-            stroke="white"
-            strokeWidth="2"
-            />
-            <path
-            d="M4 7H20V19C20 20.1046 19.1046 21 18 21H6C4.89543 21 4 20.1046 4 19V7Z"
-            stroke="white"
-            strokeWidth="2"
-            />
-            <line x1="9" y1="11" x2="9" y2="17" stroke="white" strokeWidth="2" />
-            <line x1="15" y1="11" x2="15" y2="17" stroke="white" strokeWidth="2" />
-        </svg>
-        <div className="corner-text">
-            <span className="smart">SMART</span>
-            <span className="dustbin">DUSTBIN</span>
+      {/* Landing Nav Header */}
+      <header className="landing-nav" style={{ position: 'absolute', top: 0, width: '100%', flexShrink: 0, zIndex: 1000 }}>
+        <div className="landing-nav__container">
+          <a href="/" className="landing-nav__logo">
+            <div className="landing-nav__logo-icon">
+              <i className="fas fa-trash"></i>
+            </div>
+            <div className="landing-nav__logo-text">
+              <span className="landing-nav__logo-title">SMART</span>
+              <span className="landing-nav__logo-subtitle">DUSTBIN</span>
+            </div>
+          </a>
+          <nav className="landing-nav__menu">
+            <a href="/product" className="landing-nav__link">Product</a>
+            <a href="/support" className="landing-nav__link">Support</a>
+            <a href="/solutions" className="landing-nav__link">Solutions</a>
+          </nav>
+          <div className="landing-nav__actions">
+            <a href="/login" className="landing-nav__signin">Sign in</a>
+            <a href="/register" className="landing-nav__demo">Request Demo</a>
+          </div>
+          <button className="landing-nav__mobile-toggle" id="mobileMenuToggle">
+            <i className="fas fa-bars"></i>
+          </button>
         </div>
-      </div>
+      </header>
 
-      <div className="login-container">
+      <div className="login-scroll-area">
+        <div className="login-container">
         <div className="logo-icon">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -238,30 +288,30 @@ export default function GoogleSetup(){
         <p className="enter-message">Set up your password and personal details.</p>
 
         <form id="google-setup-form" onSubmit={handleSubmit}>
-            <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
-                <div style={{flex:1}}>
-                <input 
-                    id="firstName" 
-                    value={firstName} 
-                    onChange={e=>setFirstName(e.target.value)} 
-                    placeholder="FIRST NAME" 
-                    className="input-field"
-                    style={{marginBottom:0, width:'100%', animationDelay: '0.6s'}}
-                    required
-                />
-                </div>
-                <div style={{flex:1}}>
-                <input 
-                    id="lastName" 
-                    value={lastName} 
-                    onChange={e=>setLastName(e.target.value)} 
-                    placeholder="LAST NAME" 
-                    className="input-field" 
-                    style={{marginBottom:0, width:'100%', animationDelay: '0.7s'}}
-                    required
-                />
-                </div>
-            </div>
+            <input
+                id="firstName"
+                value={firstName}
+                onChange={e => {
+                    const val = e.target.value
+                    if (/^[a-zA-Z\s]*$/.test(val)) setFirstName(val)
+                }}
+                placeholder="FIRST NAME"
+                className="input-field"
+                style={{animationDelay: '0.6s'}}
+                required
+            />
+            <input
+                id="lastName"
+                value={lastName}
+                onChange={e => {
+                    const val = e.target.value
+                    if (/^[a-zA-Z\s]*$/.test(val)) setLastName(val)
+                }}
+                placeholder="LAST NAME"
+                className="input-field"
+                style={{animationDelay: '0.7s'}}
+                required
+            />
 
             <div className="password-container">
                 <input
@@ -307,23 +357,28 @@ export default function GoogleSetup(){
             <button id="submit" type="submit" className="login-btn" style={{animationDelay: '0.9s'}}>COMPLETE SETUP</button>
         </form>
 
-            <a 
-            href="/login" 
-            className="forgot-link" 
-            style={{
-            display: 'block', 
-            textAlign: 'center', 
-            marginTop: '15px', 
-            marginBottom: '15px', 
-            textDecoration: 'underline',
-               
-            marginLeft: 'auto', 
-            marginRight: 'auto'
-            }}
+            <button
+              type="button"
+              onClick={handleCancelSetup}
+              className="forgot-link"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                marginTop: '10px',
+                marginBottom: '15px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                width: 'fit-content',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                animation: 'slideInUp 0.6s ease-out 1s both',
+              }}
             >
-              Back to Login
-            </a>
+              <u>Cancel Setup</u>
+            </button>
 
+        </div>
       </div>
     </div>
   )

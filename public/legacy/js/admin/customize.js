@@ -220,7 +220,7 @@ async function loadBinsPage() {
         threshold: data.threshold || 80,
         location: data.location || '',
         imageUrl: data.imageUrl || '',
-        sensorStatus: data.sensorStatus || 'Connected',
+        sensorStatus: (data.sensorStatus || 'Disconnected').toString().toLowerCase(),
         lastConfigured: data.lastConfigured || 'Unknown',
         status: data.status || 'Available',
         dateCreated: data.dateCreated || new Date().toLocaleDateString(),
@@ -320,7 +320,7 @@ function updatePreview(bin) {
   if (previewDetails) previewDetails.innerHTML = `
     <div class="preview-detail-row"><span class="detail-label">Capacity</span><span class="detail-value">${bin.capacity} Liters</span></div>
     <div class="preview-detail-row"><span class="detail-label">Alert Threshold</span><span class="detail-value">${bin.threshold}%</span></div>
-    <div class="preview-detail-row"><span class="detail-label">Sensor Status</span><span class="detail-value detail-value--connected">${bin.sensorStatus}</span></div>
+    <div class="preview-detail-row"><span class="detail-label">Sensor Status</span><span class="detail-value ${bin.sensorStatus==='connected' ? 'detail-value--connected' : ''}">${bin.sensorStatus}</span></div>
   `;
 }
 
@@ -398,7 +398,7 @@ async function addNewBin() {
     threshold: 80,
     location: 'Unassigned',
     imageUrl: 'https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?w=400',
-    sensorStatus: 'Connected',
+    sensorStatus: 'disconnected',
     lastConfigured: 'Just now',
     status: 'Available',
     dateCreated: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),

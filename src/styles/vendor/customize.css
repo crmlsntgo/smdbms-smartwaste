@@ -301,10 +301,10 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10b981;
+  background: #6b7280; /* default gray for disconnected */
 }
 .status-dot--connected { background: #10b981; }
-.status-dot--disconnected { background: #ef4444; }
+.status-dot--disconnected { background: #6b7280; }
 
 /* Additional Info */
 .additional-info {

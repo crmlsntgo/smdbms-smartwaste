@@ -538,8 +538,11 @@ body {
 .bin-meta { font-size: 11px; color: #666; text-align: center; line-height: 1.6; }
 
 /* Col 2: Status */
-.bin-col-2 { flex: 1; border-left: 1px solid #eee; border-right: 1px solid #eee; padding: 0 20px; display: flex; flex-direction: column; gap: 24px; justify-content: center; }
+.bin-col-2 { flex: 1; border-left: 1px solid #eee; border-right: 1px solid #eee; padding: 0 20px; display: flex; flex-direction: column; gap: 15px; justify-content: flex-start; }
 .b-stat-group h4 { font-size: 12px; color: #333; margin-bottom: 8px; }
+
+/* align first stat group to level of fill-level label */
+.b-stat-group { margin-top: 0; }
 
 .conn-sig { font-size: 12px; color: #4caf50; font-weight: 600; display: flex; align-items: center; gap: 6px; }
 

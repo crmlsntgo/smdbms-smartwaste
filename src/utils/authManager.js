@@ -123,16 +123,20 @@ export function redirectIfAuthenticated() {
     if (!user) return
 
     try {
-      let role = null
-      try { role = window.localStorage.getItem('sb_role') } catch (e) { role = null }
+      // Always fetch fresh user doc to check profile completeness
+      const uSnap = await getDoc(doc(db, 'users', user.uid))
+      const data = uSnap.exists() ? uSnap.data() : null
 
-      if (!role) {
-        const uSnap = await getDoc(doc(db, 'users', user.uid))
-        if (uSnap && uSnap.exists()) role = (uSnap.data().role || 'utility staff').toString().toLowerCase()
-        try { window.localStorage.setItem('sb_role', role) } catch (e) {}
+      // If user doc is missing or profile is incomplete, send to setup
+      if (!data || data.setupComplete === false || !data.firstName || !data.lastName ||
+          data.firstName.trim() === '' || data.lastName.trim() === '') {
+        window.location.href = '/setup'
+        return
       }
 
-      const r = (role || 'utility staff').toString().toLowerCase()
+      const r = (data.role || 'utility staff').toString().toLowerCase()
+      try { window.localStorage.setItem('sb_role', r) } catch (e) {}
+
       if (r === 'admin') window.location.href = '/admin/dashboard'
       else window.location.href = '/dashboard'
     } catch (err) {

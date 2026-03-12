@@ -24,6 +24,9 @@ function normalizeBin(docSnap) {
   const name = data.name || data.binName || id
   const rawConn = data.connectivity || data.sensorStatus || 'disconnected'
   const connectivity = rawConn.charAt(0).toUpperCase() + rawConn.slice(1)
+  // preserve sensorStatus separately for UI dots
+  const sensorStatus = (data.sensorStatus || '').toString().toLowerCase()
+  const serial = data.serial || ''
 
   const wc = data.waste_composition || {}
   const recyclable   = Number(wc.recyclable) || 0
@@ -62,6 +65,8 @@ function normalizeBin(docSnap) {
 
   return {
     id, name, location, status, connectivity,
+    sensorStatus,
+    serial,
     fill_level, general_waste, capacity,
     waste_composition: { recyclable, biodegradable, non_biodegradable },
     fill_rate,
@@ -425,10 +430,12 @@ export default function Dashboard() {
                             <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                                 <span style={{
                                     width:'10px', height:'10px',
-                                    background: binDetail?.connectivity?.toLowerCase().includes('online') || binDetail?.connectivity?.toLowerCase().includes('strong') ? '#00e676' : '#9ca3af',
+                                    background: binDetail?.sensorStatus === 'connected' ? '#00e676' : '#9ca3af',
                                     borderRadius:'50%'
                                 }}></span>
-                                {binDetail?.name || 'Bin #01'}
+                                {binDetail?
+                                      `${binDetail.name || 'Bin #01'}${binDetail.serial ? ` / ${binDetail.serial}` : ''}`
+                                      : 'Bin #01'}
                             </div>
                             <span className="bin-sub">{binDetail?.location || 'Main Building Bin'}</span>
                         </div>

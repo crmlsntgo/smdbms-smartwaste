@@ -187,7 +187,8 @@ export default function Customize() {
                   id: docSnap.id, 
                   ...data,
                   binName: data.name || data.binName || 'Unnamed Bin',
-                  sensorStatus: data.sensorStatus || 'connected',
+                  // default disconnected if not specified
+                  sensorStatus: (data.sensorStatus || 'disconnected').toString().toLowerCase(),
                   imageUrl: data.imageUrl || ''
               })
           })
@@ -218,7 +219,7 @@ export default function Customize() {
           threshold: bin.threshold || '',
           location: bin.location || '',
           imageUrl: bin.imageUrl || '',
-          sensorStatus: bin.sensorStatus || 'disconnected',
+          sensorStatus: (bin.sensorStatus || 'disconnected').toString().toLowerCase(),
           lastConfigured: bin.lastConfigured,
           status: bin.status,
           createdAt: bin.createdAt,
@@ -635,7 +636,7 @@ export default function Customize() {
                             </div>
                             <div id="custom-threshold" className={`form-group ${getHighlightClass('custom-threshold')}`}>
                                 <label htmlFor="bin-threshold">Alert Threshold (%)</label>
-                                <input type="number" id="bin-threshold" value={formData.threshold} onChange={handleInputChange} min="1" max="100" disabled={!selectedBinId} />
+                                <input type="number" id="bin-threshold" value={formData.threshold} readOnly onChange={handleInputChange} min="1" max="100" disabled={!selectedBinId} />
                             </div>
                         </div>
 
@@ -647,7 +648,7 @@ export default function Customize() {
                             <div id="custom-sensor" className={`form-group ${getHighlightClass('custom-sensor')}`}>
                                 <label>Sensor Connection</label>
                                 <div className="sensor-status" style={{color: formData.sensorStatus === 'connected' ? '#059669' : '#6b7280'}}>
-                                    <span className={`status-dot ${formData.sensorStatus === 'connected' ? 'status-dot--connected' : ''}`}></span>
+                                    <span className={`status-dot ${formData.sensorStatus === 'connected' ? 'status-dot--connected' : 'status-dot--disconnected'}`}></span>
                                     {formData.sensorStatus === 'connected' ? 'Connected' : 'Disconnected'}
                                 </div>
                             </div>

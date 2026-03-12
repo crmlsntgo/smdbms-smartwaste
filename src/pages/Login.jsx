@@ -134,8 +134,12 @@ export default function Login() {
       
       if (userDoc.exists()) {
           const data = userDoc.data()
-          // Check if profile is complete (has firstName/lastName)
-          if (!data.firstName || !data.lastName) {
+          const profileComplete = Boolean(
+          data.firstName && data.lastName &&
+          data.firstName.trim() !== '' && data.lastName.trim() !== ''
+          )
+          // Enforce setup flow for Google-created users until completion
+          if (data.setupComplete === false || !profileComplete) {
               window.location.href = '/setup'
           } else {
               // Login success, redirect based on role
@@ -151,7 +155,8 @@ export default function Login() {
               email: user.email,
               role: 'utility staff',
               createdAt: new Date().toISOString(),
-              photoURL: user.photoURL || ''
+              photoURL: user.photoURL || '',
+              setupComplete: false
           })
           window.location.href = '/setup'
       }

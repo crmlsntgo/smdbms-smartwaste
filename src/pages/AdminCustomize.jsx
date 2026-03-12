@@ -578,7 +578,7 @@ export default function AdminCustomize() {
                             </div>
                             <div className="form-group">
                                 <label htmlFor="bin-threshold">Alert Threshold (%)</label>
-                                <input type="number" id="bin-threshold" value={formData.threshold} onChange={handleInputChange} min="1" max="100" disabled={!selectedBinId} />
+                                <input type="number" id="bin-threshold" readonly value={formData.threshold} onChange={handleInputChange} min="1" max="100" disabled={!selectedBinId} />
                             </div>
                         </div>
 
