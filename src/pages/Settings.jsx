@@ -106,8 +106,16 @@ export default function Settings() {
             setFormData(prev => ({ ...prev, lastName: value }))
         }
     }
-    else if (id === 'settings-phone') setFormData(prev => ({ ...prev, phone: value }))
-    else if (id === 'settings-address') setFormData(prev => ({ ...prev, address: value }))
+    else if (id === 'settings-phone') {
+        // Allow only digits for phone
+        if (/^\d*$/.test(value)) setFormData(prev => ({ ...prev, phone: value }))
+    }
+    else if (id === 'settings-address') {
+        // Allow letters, numbers, spaces, periods, commas; limit length to 255
+        if (/^[a-zA-Z0-9\s.,]*$/.test(value) && value.length <= 255) {
+            setFormData(prev => ({ ...prev, address: value }))
+        }
+    }
   }
 
   const handleCityChange = (e) => {
@@ -397,11 +405,11 @@ export default function Settings() {
                           </div>
                           <div className="form-field">
                             <label>Address</label>
-                            <input type="text" id="settings-address" placeholder="Address" value={formData.address} onChange={handleInputChange} />
+                            <input type="text" id="settings-address" placeholder="Address" value={formData.address} onChange={handleInputChange} maxLength={255} />
                           </div>
                           <div className="form-field">
                             <label>Contact Number</label>
-                            <input type="text" id="settings-phone" placeholder="Phone number" value={formData.phone} onChange={handleInputChange} />
+                            <input type="text" id="settings-phone" placeholder="Phone number" value={formData.phone} onChange={handleInputChange} maxLength={15} />
                           </div>
                           <div className="form-field">
                             <label>Role</label>
