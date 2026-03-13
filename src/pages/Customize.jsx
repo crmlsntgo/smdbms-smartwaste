@@ -239,6 +239,14 @@ export default function Customize() {
       if (id === 'bin-capacity' || id === 'bin-threshold') {
           if (!/^\d*$/.test(value)) return // Only digits
       }
+
+      // Bin name/location constraints: max 30, letters/numbers/spaces only
+      if (id === 'bin-name' || id === 'bin-location') {
+          // Reject special characters
+          if (!/^[a-zA-Z0-9\s]*$/.test(value)) return
+          // Enforce max length
+          if (value.length > 30) return
+      }
       
       setFormData(prev => ({ ...prev, [key]: value }))
   }
@@ -621,7 +629,7 @@ export default function Customize() {
                         <div className="form-row">
                             <div id="custom-bin-name" className={`form-group ${getHighlightClass('custom-bin-name')}`}>
                                 <label htmlFor="bin-name">Bin Name</label>
-                                <input type="text" id="bin-name" value={formData.binName} onChange={handleInputChange} disabled={!selectedBinId} />
+                                <input type="text" id="bin-name" value={formData.binName} onChange={handleInputChange} maxLength={30} disabled={!selectedBinId} />
                             </div>
                             <div id="custom-capacity" className={`form-group ${getHighlightClass('custom-capacity')}`}>
                                 <label htmlFor="bin-capacity">Capacity (Liters)</label>
@@ -643,7 +651,7 @@ export default function Customize() {
                         <div className="form-row">
                             <div id="custom-location" className={`form-group ${getHighlightClass('custom-location')}`}>
                                 <label htmlFor="bin-location">Location</label>
-                                <input type="text" id="bin-location" value={formData.location} onChange={handleInputChange} disabled={!selectedBinId} />
+                                <input type="text" id="bin-location" value={formData.location} onChange={handleInputChange} maxLength={30} disabled={!selectedBinId} />
                             </div>
                             <div id="custom-sensor" className={`form-group ${getHighlightClass('custom-sensor')}`}>
                                 <label>Sensor Connection</label>
