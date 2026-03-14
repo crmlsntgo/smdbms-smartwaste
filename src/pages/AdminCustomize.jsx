@@ -198,6 +198,12 @@ export default function AdminCustomize() {
       if (id === 'bin-capacity' || id === 'bin-threshold') {
           if (!/^\d*$/.test(value)) return // Only digits
       }
+
+      // Bin name/location constraints: max 30, letters/numbers/spaces only
+      if (id === 'bin-name' || id === 'bin-location') {
+          if (!/^[a-zA-Z0-9\s]*$/.test(value)) return
+          if (value.length > 30) return
+      }
       
       setFormData(prev => ({ ...prev, [key]: value }))
   }
@@ -563,7 +569,7 @@ export default function AdminCustomize() {
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="bin-name">Bin Name</label>
-                                <input type="text" id="bin-name" value={formData.binName} onChange={handleInputChange} disabled={!selectedBinId} />
+                                <input type="text" id="bin-name" value={formData.binName} onChange={handleInputChange} maxLength={30} disabled={!selectedBinId} />
                             </div>
                             <div className="form-group">
                                 <label htmlFor="bin-capacity">Capacity (Liters)</label>
@@ -585,7 +591,7 @@ export default function AdminCustomize() {
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="bin-location">Location</label>
-                                <input type="text" id="bin-location" value={formData.location} onChange={handleInputChange} disabled={!selectedBinId} />
+                                <input type="text" id="bin-location" value={formData.location} onChange={handleInputChange} maxLength={30} disabled={!selectedBinId} />
                             </div>
                             <div className="form-group">
                                 <label>Sensor Connection</label>

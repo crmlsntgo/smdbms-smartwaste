@@ -139,7 +139,7 @@ export default function Profile() {
                                 <p className="info-value">{profileData.lastName}</p>
                             </div>
                             <div className="info-field">
-                                <label className="info-label">Username</label>
+                                <label className="info-label">Identifier</label>
                                 <p className="info-value">{profileData.username}</p>
                             </div>
 

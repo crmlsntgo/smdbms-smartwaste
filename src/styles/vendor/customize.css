@@ -391,10 +391,21 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .preview-location i {
   color: #027a5e;
+  flex: 0 0 auto;
+}
+
+.preview-location span {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .preview-image {
@@ -708,4 +719,22 @@
     text-align: left;
     align-items: flex-start;
   }
+}
+
+/* Keep AdminCustomize preview location truncation identical to Customize */
+.admin-customize-preview .preview-location {
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-customize-preview .preview-location i {
+  flex: 0 0 auto;
+}
+
+.admin-customize-preview .preview-location span {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

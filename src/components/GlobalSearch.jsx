@@ -20,6 +20,10 @@ export default function GlobalSearch() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
         if (user) {
             SearchManager.init(user)
+      } else {
+        SearchManager.init(null)
+        setResults([])
+        setShowResults(false)
         }
     })
     
@@ -54,12 +58,19 @@ export default function GlobalSearch() {
     setShowResults(false)
     setQuery('') // Optional: clear query
     
-    // Determine path
-    let path = '/'
-    if (item.page === 'dashboard') path = '/dashboard'
-    else if (item.page === 'customize') path = '/customize'
-    else if (item.page === 'settings') path = '/settings'
-    else if (item.page === 'archive') path = '/archive'
+    // Determine path (prefer explicit path from search index)
+    let path = item.path || '/'
+    if (!item.path) {
+      if (item.page === 'dashboard') path = '/dashboard'
+      else if (item.page === 'customize') path = '/customize'
+      else if (item.page === 'settings') path = '/settings'
+      else if (item.page === 'archive') path = '/archive'
+      else if (item.page === 'profile') path = '/profile'
+      else if (item.page === 'support') path = '/support'
+      else if (item.page === 'product') path = '/product'
+      else if (item.page === 'solutions') path = '/solutions'
+      else if (item.page === 'users') path = '/admin/users'
+    }
     
     // Add query params for highlighting or specific item focus
     // Legacy used custom navigation logic. Here we can use simple routing.
@@ -99,6 +110,7 @@ export default function GlobalSearch() {
          case 'list': return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
          case 'user-cog': 
          case 'user': return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+         case 'users': return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
          case 'palette': return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>
          case 'tag': return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01"/></svg>
          case 'weight': return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v18"/><path d="M3 12h18"/><path d="M4 4h16v16H4z"/></svg>

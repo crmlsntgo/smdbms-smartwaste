@@ -36,6 +36,7 @@ export default function AdminArchive() {
     const [loading, setLoading] = useState(true)
     const [currentFilter, setCurrentFilter] = useState('all') // 'all', 'archived', 'restored', 'deleted'
     const [searchTerm, setSearchTerm] = useState('')
+    const [sortConfig, setSortConfig] = useState({ key: 'archivedAt', direction: 'desc' })
     const [currentPage, setCurrentPage] = useState(1)
     const [selectedBins, setSelectedBins] = useState(new Set())
     const [itemsPerPage] = useState(6)
@@ -155,7 +156,12 @@ export default function AdminArchive() {
                     binName: data.name || data.binName || 'Unknown Bin',
                     location: data.location || 'Unknown Location',
                     status: 'Deleted',
-                    archivedAt: data.autoDeleteAfter?.toDate ? data.autoDeleteAfter.toDate() : new Date() 
+                    archivedAt: data.archivedAt?.toDate
+                        ? data.archivedAt.toDate()
+                        : (data.archiveDate ? new Date(data.archiveDate) : null),
+                    deletedAt: data.deletedAt?.toDate
+                        ? data.deletedAt.toDate()
+                        : (data.deletedDate ? new Date(data.deletedDate) : null)
                 })
             })
 
@@ -173,7 +179,7 @@ export default function AdminArchive() {
 
     // --- Filtering & Searching ---
     useEffect(() => {
-        let result = allBins
+        let result = [...allBins]
 
         // 1. Tab Filter
         if (currentFilter !== 'all') {
@@ -190,9 +196,45 @@ export default function AdminArchive() {
             )
         }
 
+        // 3. Sort
+        result.sort((a, b) => {
+            const getSortValue = (bin, key) => {
+                switch (key) {
+                    case 'binId':
+                        return String(bin.binId || '').toLowerCase()
+                    case 'nameLocation':
+                        return `${bin.binName || ''} ${bin.location || ''}`.toLowerCase()
+                    case 'archivedAt':
+                        return bin.archivedAt instanceof Date ? bin.archivedAt.getTime() : 0
+                    case 'deletedAt':
+                        return bin.deletedAt instanceof Date ? bin.deletedAt.getTime() : 0
+                    case 'reason':
+                        return String(bin.reason || bin.archiveReason || '').toLowerCase()
+                    case 'status':
+                        return String(bin.status || '').toLowerCase()
+                    case 'archivedByName':
+                        return String(bin.archivedByName || 'system').toLowerCase()
+                    case 'modifiedBy':
+                        return String(bin.modifiedBy || 'n/a').toLowerCase()
+                    default:
+                        return ''
+                }
+            }
+
+            const valA = getSortValue(a, sortConfig.key)
+            const valB = getSortValue(b, sortConfig.key)
+
+            if (typeof valA === 'number' && typeof valB === 'number') {
+                return sortConfig.direction === 'asc' ? valA - valB : valB - valA
+            }
+            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1
+            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1
+            return 0
+        })
+
         setFilteredBins(result)
         setCurrentPage(1)
-    }, [currentFilter, searchTerm, allBins])
+    }, [currentFilter, searchTerm, allBins, sortConfig])
 
     // --- Pagination Logic ---
     const paginatedBins = useMemo(() => {
@@ -201,6 +243,13 @@ export default function AdminArchive() {
     }, [filteredBins, currentPage, itemsPerPage])
     
     const totalPages = Math.ceil(filteredBins.length / itemsPerPage)
+
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }))
+    }
 
     // --- Handlers ---
     const getUserName = async (auth, db) => {
@@ -406,34 +455,27 @@ export default function AdminArchive() {
             const userName = await getUserName(auth, db)
             
             const promises = []
+            const processedIds = []
+            const skippedDeletedIds = []
 
             for (const id of selectedBins) {
                 const bin = allBins.find(b => b.id === id)
                 if (!bin) continue
 
                 if (bin.status === 'Deleted') {
-                    // Logic 2: "Permanent Delete" for already deleted bins
-                    const deletedRef = doc(db, 'deleted', id)
-                    promises.push(deleteDoc(deletedRef))
-                    
-                    // Logic 3: Delete Serial Number
-                    if (bin.serial) {
-                        const serialRef = doc(db, 'serials', bin.serial)
-                        // Using separate transactions inside loop is inefficient but serials are likely one-off docs?
-                        // Or just fire-and-forget delete
-                        promises.push(deleteDoc(serialRef))
-                        // Also check 'settings/serials' or wherever it was? 
-                        // The codebase previously used `doc(db, 'serials', serial)` for archiving.
-                    }
+                    // Preserve already-deleted records; do not hard delete.
+                    skippedDeletedIds.push(id)
                 } else {
                     // Logic 4: Archive -> Deleted (Soft Delete)
                     const safeData = JSON.parse(JSON.stringify(bin))
                     if (safeData.id) delete safeData.id
+                    processedIds.push(id)
 
                     promises.push(
                         addDoc(collection(db, 'deleted'), {
                             ...safeData,
                             deletedAt: serverTimestamp(),
+                            deletedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                             deletedBy: auth.currentUser?.email || 'Admin',
                             modifiedBy: userName,
                             originalId: id,
@@ -448,23 +490,15 @@ export default function AdminArchive() {
             
             // Local State Update
             setAllBins(prev => {
-                // If soft deleted -> move to deleted tab (status update)
-                // If permanent deleted -> remove from list
                 const nextState = []
                 prev.forEach(b => {
-                    if (selectedBins.has(b.id)) {
-                        if (b.status === 'Deleted') {
-                           // Permanent delete: Exclude from state
-                           return
-                        } else {
-                           // Soft delete: Update Status
-                           nextState.push({
-                               ...b,
-                               status: 'Deleted',
-                               archivedAt: new Date(),
-                               modifiedBy: userName
-                           })
-                        }
+                    if (processedIds.includes(b.id)) {
+                        nextState.push({
+                            ...b,
+                            status: 'Deleted',
+                            deletedAt: new Date(),
+                            modifiedBy: userName
+                        })
                     } else {
                         nextState.push(b)
                     }
@@ -472,11 +506,19 @@ export default function AdminArchive() {
                 return nextState.sort((a,b) => (b.archivedAt || 0) - (a.archivedAt || 0))
             })
 
-            const deletedCount = selectedBins.size
+            const deletedCount = processedIds.length
             setSelectedBins(new Set())
-            setToast({ show: true, message: `${deletedCount} bins deleted.`, type: 'delete' })
+            if (deletedCount > 0 && skippedDeletedIds.length > 0) {
+                setToast({ show: true, message: `${deletedCount} bins moved to Deleted. ${skippedDeletedIds.length} already-deleted records were preserved.`, type: 'delete' })
+            } else if (deletedCount > 0) {
+                setToast({ show: true, message: `${deletedCount} bins deleted.`, type: 'delete' })
+            } else {
+                setToast({ show: true, message: `Selected records are already deleted and were preserved.`, type: 'error' })
+            }
 
-            notifyBinChange(db, 'delete', Array.from(selectedBins))
+            if (processedIds.length > 0) {
+                notifyBinChange(db, 'delete', processedIds)
+            }
             setShowBatchDeleteModal(false)
             
         } catch (error) {
@@ -503,19 +545,10 @@ export default function AdminArchive() {
             const binData = allBins.find(b => b.id === binToDelete) || {}
 
             if (binData.status === 'Deleted') {
-                 // Hard Delete Logic
-                 await deleteDoc(doc(db, 'deleted', binToDelete))
-                 if (binData.serial) {
-                     await deleteDoc(doc(db, 'serials', binData.serial))
-                 }
-                 
-                 setAllBins(prev => prev.filter(b => b.id !== binToDelete))
+                  // Preserve already-deleted records; hard delete is disabled.
                  setShowDeleteModal(false)
                  setBinToDelete(null)
-                 setToast({ show: true, message: `The ${binData.binName || 'bin'} is permanently deleted.`, type: 'delete' })
-                 
-                 notifyBinChange(db, 'delete', binToDelete)
-
+                  setToast({ show: true, message: `Hard delete is disabled. The ${binData.binName || 'bin'} record was preserved.`, type: 'error' })
                  return
             }
             
@@ -526,10 +559,11 @@ export default function AdminArchive() {
             await addDoc(collection(db, 'deleted'), {
                 ...safeData,
                 deletedAt: serverTimestamp(),
+                deletedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
                 deletedBy: auth.currentUser?.email || 'Admin',
                 modifiedBy: userName,
                 originalId: binToDelete,
-                autoDeleteAfter: new Date(Date.now() + 24 * 60 * 60 * 1000) // 1 day (for testing)
+                autoDeleteAfter: new Date(Date.now() + 60 * 1000) // 1 minute (for testing)
             })
 
             // Delete from Archive
@@ -539,7 +573,7 @@ export default function AdminArchive() {
             const deletedItem = {
                 ...binData,
                 status: 'Deleted',
-                archivedAt: new Date(),
+                deletedAt: new Date(),
                 modifiedBy: userName
             }
             
@@ -687,14 +721,30 @@ export default function AdminArchive() {
                                 <thead>
                                     <tr>
                                         <th><input type="checkbox" onChange={toggleSelectAll} checked={filteredBins.length > 0 && selectedBins.size === filteredBins.length} /></th>
-                                        <th>Bin ID</th>
-                                        <th>Bin Name & Location</th>
-                                        <th>Archive Date</th>
-                                        <th>Reason</th>
-                                        <th>Last Active</th>
-                                        <th>Status</th>
-                                        <th>Archived By</th>
-                                        <th>Modified By</th>
+                                        <th className="sortable" onClick={() => handleSort('binId')} style={{cursor:'pointer'}}>
+                                            Bin ID <i className={`fas fa-sort${sortConfig.key === 'binId' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('nameLocation')} style={{cursor:'pointer'}}>
+                                            Bin Name & Location <i className={`fas fa-sort${sortConfig.key === 'nameLocation' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('archivedAt')} style={{cursor:'pointer'}}>
+                                            Archive Date <i className={`fas fa-sort${sortConfig.key === 'archivedAt' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('deletedAt')} style={{cursor:'pointer'}}>
+                                            Deleted Date <i className={`fas fa-sort${sortConfig.key === 'deletedAt' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('reason')} style={{cursor:'pointer'}}>
+                                            Reason <i className={`fas fa-sort${sortConfig.key === 'reason' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('status')} style={{cursor:'pointer'}}>
+                                            Status <i className={`fas fa-sort${sortConfig.key === 'status' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('archivedByName')} style={{cursor:'pointer'}}>
+                                            Archived By <i className={`fas fa-sort${sortConfig.key === 'archivedByName' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
+                                        <th className="sortable" onClick={() => handleSort('modifiedBy')} style={{cursor:'pointer'}}>
+                                            Modified By <i className={`fas fa-sort${sortConfig.key === 'modifiedBy' ? (sortConfig.direction === 'asc' ? '-up' : '-down') : ''}`} aria-hidden="true"></i>
+                                        </th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -734,8 +784,8 @@ export default function AdminArchive() {
                                                     <div className="bin-location">{bin.location}</div>
                                                 </td>
                                                 <td>{formatDate(bin.archivedAt)}</td>
+                                                <td>{formatDate(bin.deletedAt)}</td>
                                                 <td>{bin.reason || bin.archiveReason || 'No reason'}</td>
-                                                <td>{formatDate(bin.lastActive)}</td>
                                                 <td>
                                                     <span className={`status-badge status-badge--${bin.status?.toLowerCase()}`}>
                                                         {bin.status}
