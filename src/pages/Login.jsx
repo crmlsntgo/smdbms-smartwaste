@@ -92,24 +92,21 @@ export default function Login() {
               window.location.href = '/dashboard'
           }
       } else {
-          // Check if archived
+         // Check if archived
           const archiveRef = doc(db, 'account_archive', cred.user.uid)
           const archiveDoc = await getDoc(archiveRef)
           
           if (archiveDoc.exists()) {
-             alert('This account has been archived. Please contact support to restore it.')
+           alert('This account has been archived. Please register again to create a new account.')
              await auth.signOut()
              setIsLoggingIn(false)
              return
           }
-          
-          // If simply missing but not archived? (e.g. new user not properly set up)
-          // Ideally block, but respecting legacy fallback if needed.
-          // However, for this task "can't log in again", blocking is safer.
-          // But I'll stick to blocking specifically archived ones or just fail if user doc missing.
-          // Given the prompt creates an archive entry, checking for it is robust.
-          
-          window.location.href = '/dashboard'
+
+         alert('Account record not found. Please register again.')
+         await auth.signOut()
+         setIsLoggingIn(false)
+         return
       }
     } catch (err) {
       console.error(err)
@@ -150,13 +147,22 @@ export default function Login() {
               else window.location.href = '/dashboard'
           }
       } else {
-          // New user - create initial doc and redirect to setup
+          // If no user doc but archived account exists for this UID, block login until re-registration.
+          const archiveRef = doc(db, 'account_archive', user.uid)
+          const archiveDoc = await getDoc(archiveRef)
+          if (archiveDoc.exists()) {
+            alert('This account has been archived. Please register again to create a new account.')
+            await auth.signOut()
+            return
+          }
+
+          // New social account setup
           await setDoc(userRef, {
-              email: user.email,
-              role: 'utility staff',
-              createdAt: new Date().toISOString(),
-              photoURL: user.photoURL || '',
-              setupComplete: false
+            email: user.email,
+            role: 'utility staff',
+            createdAt: new Date().toISOString(),
+            photoURL: user.photoURL || '',
+            setupComplete: false
           })
           window.location.href = '/setup'
       }

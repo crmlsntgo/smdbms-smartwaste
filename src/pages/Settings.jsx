@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useSearchHighlight } from '../hooks/useSearchHighlight'
-import { getAuth, updateProfile, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider, sendPasswordResetEmail } from 'firebase/auth'
+import { getAuth, updateProfile, signOut, reauthenticateWithCredential, updatePassword, EmailAuthProvider, sendPasswordResetEmail, deleteUser } from 'firebase/auth'
 import { getFirestore, doc, getDoc, updateDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Header from '../components/Header'
@@ -274,8 +274,14 @@ export default function Settings() {
 
           if (!user) return
 
+          const userDocRef = doc(db, 'users', user.uid)
+          const userDocSnap = await getDoc(userDocRef)
+          const userData = userDocSnap.exists() ? userDocSnap.data() : {}
+          const archivedUsername = userData.username || formData.username || ''
+
           // 1. Store in account_archive
           await setDoc(doc(db, 'account_archive', user.uid), {
+             ...userData,
              ...formData,
              role: originalData.role || 'User',
              uid: user.uid,
@@ -284,25 +290,27 @@ export default function Settings() {
           })
 
           // 2. Delete from users collection
-          await deleteDoc(doc(db, 'users', user.uid))
+          await deleteDoc(userDocRef)
 
-          // 3. Sign out and delete Auth user (optional: if you want to completely block login)
-          // If we just want to block app access but keep auth user, deleting doc 'users' is enough
-          // because Login.jsx checks for userDoc existence.
-          // However, if we want them to "can't log in again", deleting user from Auth is best if possible.
-          // But deleting auth user requires sensitive operation re-authentication sometimes.
-          // Given the prompt: "can't open/use it anymore... can't log in again", deleting document prevents app usage.
-          // And usually invalidates the session logic if we add a check on login.
-          // Login.jsx at line 42 redirects to dashboard if doc doesn't exist?
-          // Wait, Login.jsx: "else { window.location.href = '/dashboard' }"
-          // This means if user doc MISSING, it still lets them in! That's a security hole if we rely on doc deletion.
-          
-          // Let's check Login.jsx again.
-          // Line 39: if (userDoc.exists()) { ... } else { window.location.href = '/dashboard' }
-          // This means MISSING doc = Allow login as default user?
-          // We must FIX Login.jsx to prevent login if archived/missing.
-          
-          await signOut(auth)
+          // 3. Delete username mapping (if present)
+          if (archivedUsername) {
+            try {
+              await deleteDoc(doc(db, 'usernames', archivedUsername))
+            } catch (e) {
+              console.warn('Failed to delete username mapping:', e)
+            }
+          }
+
+          // 4. Best-effort: delete Firebase Auth user so email can't log in again.
+          // If this fails (e.g., recent-login required), login is still blocked via users/account_archive checks.
+          try {
+            await deleteUser(user)
+          } catch (e) {
+            console.warn('Failed to delete Firebase Auth user (recent login may be required):', e)
+          }
+
+          // 5. Ensure signed-out session
+          try { await signOut(auth) } catch (e) {}
           window.location.href = '/login'
 
       } catch (error) {

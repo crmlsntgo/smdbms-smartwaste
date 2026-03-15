@@ -109,9 +109,16 @@ service cloud.firestore {
 
     // Account Archive (for users archiving their own accounts)
     match /account_archive/{userId} {
-      // Allow users to create/write their own archive record
-      allow create, update: if isSignedIn() && request.auth.uid == userId;
-      allow read, delete: if isSignedIn() && isAdmin();
+      // Create archive record for the currently signed-in user
+      allow create: if isSignedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.archivedEmail == request.auth.token.email;
+
+      // Allow owner-by-email (for re-register restore flow) and admins to read/update/delete
+      allow read: if isSignedIn() && (isAdmin() || resource.data.archivedEmail == request.auth.token.email);
+      allow update: if isSignedIn() && (isAdmin() || resource.data.archivedEmail == request.auth.token.email);
+      allow delete: if isSignedIn() && (isAdmin() || resource.data.archivedEmail == request.auth.token.email);
     }
 
     // Active Sessions (used for multiple-login detection)

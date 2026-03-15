@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth'
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, limit, deleteDoc } from 'firebase/firestore'
 import initFirebase from '../firebaseConfig'
 import Toast from '../components/Toast'
 import '../styles/vendor/landing-page.css'
@@ -195,7 +195,23 @@ export default function Register() {
       if (!userCredential.user) throw new Error('Failed to create account')
 
       const role = 'utility staff'
-      const identifier = await generateUniqueIdentifier(db)
+
+      // If this email was previously archived, restore old profile data.
+      let archivedRecord = null
+      let archivedDocId = null
+      try {
+        const archivedQ = query(collection(db, 'account_archive'), where('archivedEmail', '==', email), limit(1))
+        const archivedSnap = await getDocs(archivedQ)
+        if (!archivedSnap.empty) {
+          archivedDocId = archivedSnap.docs[0].id
+          archivedRecord = archivedSnap.docs[0].data()
+        }
+      } catch (archiveLookupError) {
+        console.warn('Archived account lookup failed:', archiveLookupError)
+      }
+
+      const restoredIdentifier = archivedRecord?.username || archivedRecord?.identifier || null
+      const identifier = restoredIdentifier || await generateUniqueIdentifier(db)
 
       try {
         await updateProfile(userCredential.user, { displayName: `${firstName} ${lastName}` })
@@ -204,15 +220,20 @@ export default function Register() {
       }
 
       const userRef = doc(db, 'users', userCredential.user.uid)
-      await setDoc(userRef, {
+      const userPayload = {
+        ...(archivedRecord || {}),
         firstName: firstName,
         lastName: lastName,
         username: identifier,
         identifier: identifier,
         email: email,
-        role: role,
+        role: archivedRecord?.role || role,
         createdAt: new Date().toISOString(),
-      }, { merge: true })
+      }
+      if (archivedRecord) {
+        userPayload.restoredAt = new Date().toISOString()
+      }
+      await setDoc(userRef, userPayload, { merge: true })
 
       console.log("User document created successfully")
 
@@ -225,6 +246,15 @@ export default function Register() {
         })
       } catch (usernameError) {
         console.warn('Error saving username map:', usernameError)
+      }
+
+      // Remove archived record after successful restoration
+      if (archivedDocId) {
+        try {
+          await deleteDoc(doc(db, 'account_archive', archivedDocId))
+        } catch (archiveDeleteError) {
+          console.warn('Failed to delete archived account record:', archiveDeleteError)
+        }
       }
 
       setToast({ show: true, message: 'Account created successfully. Redirecting to login...', type: 'success' })
